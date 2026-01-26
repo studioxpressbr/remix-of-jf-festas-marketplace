@@ -55,23 +55,35 @@ export default {
           DEFAULT: "hsl(var(--card))",
           foreground: "hsl(var(--card-foreground))",
         },
+        // JF Festas Brand Colors
+        jf: {
+          orange: {
+            DEFAULT: "hsl(var(--jf-orange))",
+            light: "hsl(var(--jf-orange-light))",
+            dark: "hsl(var(--jf-orange-dark))",
+          },
+          teal: {
+            DEFAULT: "hsl(var(--jf-teal))",
+            light: "hsl(var(--jf-teal-light))",
+            dark: "hsl(var(--jf-teal-dark))",
+          },
+        },
+        // Legacy coral (alias to orange)
         coral: {
-          DEFAULT: "hsl(var(--coral))",
-          light: "hsl(var(--coral-light))",
-          dark: "hsl(var(--coral-dark))",
+          DEFAULT: "hsl(var(--jf-orange))",
+          light: "hsl(var(--jf-orange-light))",
+          dark: "hsl(var(--jf-orange-dark))",
         },
         champagne: {
           DEFAULT: "hsl(var(--champagne))",
           dark: "hsl(var(--champagne-dark))",
         },
-        terracotta: "hsl(var(--terracotta))",
         sage: {
           DEFAULT: "hsl(var(--sage))",
           light: "hsl(var(--sage-light))",
         },
         cream: "hsl(var(--cream))",
-        "warm-gray": "hsl(var(--warm-gray))",
-        gold: "hsl(var(--gold))",
+        "warm-white": "hsl(var(--warm-white))",
         sidebar: {
           DEFAULT: "hsl(var(--sidebar-background))",
           foreground: "hsl(var(--sidebar-foreground))",

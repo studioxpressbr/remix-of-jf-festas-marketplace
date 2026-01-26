@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { Header } from '@/components/layout/Header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { LEAD_PRICE, SUBSCRIPTION_PRICE } from '@/lib/constants';
+import { LEAD_PRICE, SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,6 +21,8 @@ import {
   CheckCircle,
   AlertCircle,
   Crown,
+  ExternalLink,
+  Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -102,40 +104,21 @@ function DashboardContent() {
     setUnlocking(quoteId);
     
     try {
-      // In a real app, this would integrate with Stripe/PIX
-      // For now, we'll simulate a successful payment
-      const { error } = await supabase.from('leads_access').insert({
-        quote_id: quoteId,
-        vendor_id: user!.id,
-        payment_status: 'paid',
-        unlocked_at: new Date().toISOString(),
+      // Call Stripe checkout for lead credit
+      const { data, error } = await supabase.functions.invoke('buy-lead-credit', {
+        body: { quoteId },
       });
 
       if (error) throw error;
 
-      toast({
-        title: 'Contato liberado!',
-        description: 'Agora você pode ver os dados do cliente.',
-      });
-
-      // Refresh quotes
-      const { data: quotesData } = await supabase
-        .from('quotes')
-        .select(`
-          *,
-          profiles!quotes_client_id_fkey(full_name, whatsapp, email),
-          leads_access(payment_status)
-        `)
-        .eq('vendor_id', user!.id)
-        .order('created_at', { ascending: false });
-
-      if (quotesData) {
-        setQuotes(quotesData as Quote[]);
+      if (data?.url) {
+        // Redirect to Stripe checkout
+        window.open(data.url, '_blank');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       toast({
-        title: 'Erro no pagamento',
-        description: error.message,
+        title: 'Erro ao processar',
+        description: error instanceof Error ? error.message : 'Tente novamente',
         variant: 'destructive',
       });
     } finally {
@@ -144,11 +127,26 @@ function DashboardContent() {
   };
 
   const handleActivateSubscription = async () => {
-    // In a real app, this would redirect to Stripe checkout
-    toast({
-      title: 'Em desenvolvimento',
-      description: 'Integração com pagamento em breve!',
-    });
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: { 
+          priceId: STRIPE_ANNUAL_PLAN.priceId,
+          mode: 'subscription',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.open(data.url, '_blank');
+      }
+    } catch (error: unknown) {
+      toast({
+        title: 'Erro ao processar',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive',
+      });
+    }
   };
 
   const isContactUnlocked = (quote: Quote) => {

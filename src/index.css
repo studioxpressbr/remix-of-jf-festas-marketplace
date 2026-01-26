@@ -5,111 +5,118 @@
 @tailwind utilities;
 
 /* 
-  Design System: Evento Marketplace
-  Warm, elegant, celebration-focused
+  Design System: JF Festas Marketplace
+  Brand colors: Orange & Teal
 */
 
 @layer base {
   :root {
-    /* Core palette - Warm champagne & terracotta */
-    --background: 40 33% 98%;
-    --foreground: 25 25% 15%;
+    /* Core palette - JF Festas Brand */
+    --background: 0 0% 100%;
+    --foreground: 200 15% 18%;
 
-    --card: 40 40% 99%;
-    --card-foreground: 25 25% 15%;
+    --card: 0 0% 99%;
+    --card-foreground: 200 15% 18%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 25 25% 15%;
+    --popover-foreground: 200 15% 18%;
 
-    /* Primary - Warm coral rose */
-    --primary: 12 76% 61%;
+    /* Primary - JF Festas Orange */
+    --primary: 24 95% 53%;
     --primary-foreground: 0 0% 100%;
 
-    /* Secondary - Soft champagne */
-    --secondary: 36 40% 94%;
-    --secondary-foreground: 25 25% 20%;
+    /* Secondary - JF Festas Teal */
+    --secondary: 180 50% 42%;
+    --secondary-foreground: 0 0% 100%;
 
-    /* Muted - Warm gray */
-    --muted: 30 20% 94%;
-    --muted-foreground: 25 15% 45%;
+    /* Muted - Neutral gray */
+    --muted: 200 10% 95%;
+    --muted-foreground: 200 10% 45%;
 
-    /* Accent - Sage green */
-    --accent: 145 25% 88%;
-    --accent-foreground: 145 30% 25%;
+    /* Accent - Teal */
+    --accent: 180 50% 42%;
+    --accent-foreground: 0 0% 100%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
 
-    --border: 30 25% 88%;
-    --input: 30 25% 90%;
-    --ring: 12 76% 61%;
+    --border: 200 10% 90%;
+    --input: 200 10% 90%;
+    --ring: 24 95% 53%;
 
     --radius: 0.75rem;
 
-    /* Custom tokens */
-    --coral: 12 76% 61%;
-    --coral-light: 12 76% 75%;
-    --coral-dark: 12 76% 50%;
-    --champagne: 36 50% 92%;
-    --champagne-dark: 36 30% 85%;
-    --terracotta: 18 60% 55%;
-    --sage: 145 25% 72%;
-    --sage-light: 145 25% 88%;
-    --cream: 40 33% 97%;
-    --warm-gray: 25 10% 40%;
-    --gold: 42 70% 55%;
+    /* JF Festas Brand tokens */
+    --jf-orange: 24 95% 53%;
+    --jf-orange-light: 24 90% 70%;
+    --jf-orange-dark: 24 95% 40%;
+    --jf-teal: 180 50% 42%;
+    --jf-teal-light: 180 40% 90%;
+    --jf-teal-dark: 180 55% 30%;
+    --champagne: 45 40% 95%;
+    --champagne-dark: 45 30% 88%;
+    --sage: 145 25% 50%;
+    --sage-light: 145 25% 90%;
+    --cream: 40 30% 97%;
+    --warm-white: 40 20% 99%;
+
+    /* Legacy coral aliases (map to orange) */
+    --coral: 24 95% 53%;
+    --coral-light: 24 90% 70%;
+    --coral-dark: 24 95% 40%;
 
     /* Gradients */
-    --gradient-hero: linear-gradient(135deg, hsl(40 33% 98%) 0%, hsl(36 50% 95%) 50%, hsl(12 30% 95%) 100%);
-    --gradient-coral: linear-gradient(135deg, hsl(12 76% 61%) 0%, hsl(18 60% 55%) 100%);
-    --gradient-warm: linear-gradient(180deg, hsl(36 50% 97%) 0%, hsl(40 33% 98%) 100%);
-    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(36 40% 98%) 100%);
+    --gradient-hero: linear-gradient(135deg, hsl(0 0% 100%) 0%, hsl(180 40% 97%) 50%, hsl(24 50% 97%) 100%);
+    --gradient-orange: linear-gradient(135deg, hsl(24 95% 53%) 0%, hsl(24 90% 60%) 100%);
+    --gradient-teal: linear-gradient(135deg, hsl(180 50% 42%) 0%, hsl(180 45% 55%) 100%);
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%) 0%, hsl(45 40% 98%) 100%);
 
     /* Shadows */
-    --shadow-soft: 0 4px 20px -4px hsl(25 25% 15% / 0.08);
-    --shadow-medium: 0 8px 30px -8px hsl(25 25% 15% / 0.12);
-    --shadow-strong: 0 16px 50px -12px hsl(25 25% 15% / 0.18);
-    --shadow-coral: 0 8px 30px -8px hsl(12 76% 61% / 0.3);
+    --shadow-soft: 0 4px 20px -4px hsl(200 15% 18% / 0.08);
+    --shadow-medium: 0 8px 30px -8px hsl(200 15% 18% / 0.12);
+    --shadow-strong: 0 16px 50px -12px hsl(200 15% 18% / 0.18);
+    --shadow-orange: 0 8px 30px -8px hsl(24 95% 53% / 0.35);
+    --shadow-teal: 0 8px 30px -8px hsl(180 50% 42% / 0.3);
 
-    /* Sidebar (keeping defaults) */
-    --sidebar-background: 0 0% 98%;
-    --sidebar-foreground: 240 5.3% 26.1%;
-    --sidebar-primary: 240 5.9% 10%;
-    --sidebar-primary-foreground: 0 0% 98%;
-    --sidebar-accent: 240 4.8% 95.9%;
-    --sidebar-accent-foreground: 240 5.9% 10%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    /* Sidebar */
+    --sidebar-background: 0 0% 99%;
+    --sidebar-foreground: 200 15% 18%;
+    --sidebar-primary: 24 95% 53%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 180 50% 42%;
+    --sidebar-accent-foreground: 0 0% 100%;
+    --sidebar-border: 200 10% 90%;
+    --sidebar-ring: 24 95% 53%;
   }
 
   .dark {
-    --background: 25 20% 8%;
-    --foreground: 40 20% 95%;
-    --card: 25 18% 12%;
-    --card-foreground: 40 20% 95%;
-    --popover: 25 18% 10%;
-    --popover-foreground: 40 20% 95%;
-    --primary: 12 76% 61%;
+    --background: 200 20% 8%;
+    --foreground: 0 0% 95%;
+    --card: 200 15% 12%;
+    --card-foreground: 0 0% 95%;
+    --popover: 200 15% 10%;
+    --popover-foreground: 0 0% 95%;
+    --primary: 24 95% 55%;
     --primary-foreground: 0 0% 100%;
-    --secondary: 25 15% 18%;
-    --secondary-foreground: 40 20% 90%;
-    --muted: 25 15% 20%;
-    --muted-foreground: 30 15% 60%;
-    --accent: 145 20% 20%;
-    --accent-foreground: 145 25% 85%;
+    --secondary: 180 45% 40%;
+    --secondary-foreground: 0 0% 100%;
+    --muted: 200 10% 18%;
+    --muted-foreground: 200 10% 60%;
+    --accent: 180 45% 40%;
+    --accent-foreground: 0 0% 100%;
     --destructive: 0 62% 50%;
     --destructive-foreground: 0 0% 100%;
-    --border: 25 15% 20%;
-    --input: 25 15% 22%;
-    --ring: 12 76% 61%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
+    --border: 200 10% 25%;
+    --input: 200 10% 25%;
+    --ring: 24 95% 55%;
+    --sidebar-background: 200 15% 10%;
+    --sidebar-foreground: 0 0% 95%;
+    --sidebar-primary: 24 95% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
+    --sidebar-accent: 180 45% 35%;
+    --sidebar-accent-foreground: 0 0% 95%;
+    --sidebar-border: 200 10% 20%;
+    --sidebar-ring: 24 95% 55%;
   }
 }
 
@@ -142,27 +149,39 @@
     font-family: 'DM Sans', sans-serif;
   }
 
-  .text-gradient-coral {
-    @apply bg-clip-text text-transparent;
-    background-image: var(--gradient-coral);
-  }
-
+  /* Brand gradients */
   .bg-gradient-hero {
     background: var(--gradient-hero);
   }
 
-  .bg-gradient-coral {
-    background: var(--gradient-coral);
+  .bg-gradient-orange {
+    background: var(--gradient-orange);
   }
 
-  .bg-gradient-warm {
-    background: var(--gradient-warm);
+  .bg-gradient-teal {
+    background: var(--gradient-teal);
   }
 
   .bg-gradient-card {
     background: var(--gradient-card);
   }
 
+  /* Legacy coral alias */
+  .bg-gradient-coral {
+    background: var(--gradient-orange);
+  }
+
+  .text-gradient-orange {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-orange);
+  }
+
+  .text-gradient-coral {
+    @apply bg-clip-text text-transparent;
+    background-image: var(--gradient-orange);
+  }
+
+  /* Shadows */
   .shadow-soft {
     box-shadow: var(--shadow-soft);
   }
@@ -175,8 +194,17 @@
     box-shadow: var(--shadow-strong);
   }
 
+  .shadow-orange {
+    box-shadow: var(--shadow-orange);
+  }
+
+  .shadow-teal {
+    box-shadow: var(--shadow-teal);
+  }
+
+  /* Legacy coral alias */
   .shadow-coral {
-    box-shadow: var(--shadow-coral);
+    box-shadow: var(--shadow-orange);
   }
 
   /* Animations */

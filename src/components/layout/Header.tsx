@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
-import { Menu, X, User, LogOut } from 'lucide-react';
+import { Menu, X, User, LogOut, Instagram, Search } from 'lucide-react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import logoJfFestas from '@/assets/logo-jffestas.webp';
 
 export function Header() {
   const { user, profile, signOut } = useAuthContext();
@@ -30,14 +31,31 @@ export function Header() {
 
   return (
     <>
-      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/80 backdrop-blur-lg">
+      {/* Top bar with Instagram */}
+      <div className="bg-secondary text-secondary-foreground">
+        <div className="container flex h-8 items-center justify-between text-xs">
+          <span>Marketplace de Festas em Juiz de Fora</span>
+          <a
+            href="https://www.instagram.com/festasemjf/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center gap-1.5 transition-opacity hover:opacity-80"
+          >
+            <Instagram className="h-3.5 w-3.5" />
+            <span>@festasemjf</span>
+          </a>
+        </div>
+      </div>
+
+      <header className="sticky top-0 z-50 w-full border-b border-border/50 bg-background/95 backdrop-blur-lg">
         <div className="container flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link to="/" className="flex items-center gap-2">
-            <span className="text-2xl">🎉</span>
-            <span className="font-display text-xl font-semibold text-foreground">
-              Evento
-            </span>
+          <Link to="/" className="flex items-center gap-3">
+            <img 
+              src={logoJfFestas} 
+              alt="JF Festas" 
+              className="h-10 w-auto"
+            />
           </Link>
 
           {/* Desktop Navigation */}
@@ -47,6 +65,13 @@ export function Header() {
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
               Explorar
+            </Link>
+            <Link
+              to="/buscar"
+              className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              <Search className="h-4 w-4" />
+              Buscar
             </Link>
             {user && profile?.role === 'vendor' && (
               <Link
@@ -88,7 +113,7 @@ export function Header() {
                 <Button variant="ghost" size="sm" onClick={openClientAuth}>
                   Sou Cliente
                 </Button>
-                <Button size="sm" onClick={openVendorAuth}>
+                <Button size="sm" className="bg-gradient-orange shadow-orange" onClick={openVendorAuth}>
                   Sou Fornecedor
                 </Button>
               </>
@@ -119,6 +144,14 @@ export function Header() {
               >
                 Explorar
               </Link>
+              <Link
+                to="/buscar"
+                className="flex items-center gap-1.5 text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                <Search className="h-4 w-4" />
+                Buscar
+              </Link>
               {user && profile?.role === 'vendor' && (
                 <Link
                   to="/dashboard"
@@ -128,6 +161,15 @@ export function Header() {
                   Minha Área
                 </Link>
               )}
+              <a
+                href="https://www.instagram.com/festasemjf/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1.5 text-sm font-medium text-secondary"
+              >
+                <Instagram className="h-4 w-4" />
+                @festasemjf
+              </a>
               <div className="flex flex-col gap-2 pt-4">
                 {user ? (
                   <Button variant="outline" onClick={signOut}>
@@ -139,7 +181,7 @@ export function Header() {
                     <Button variant="outline" onClick={openClientAuth}>
                       Sou Cliente
                     </Button>
-                    <Button onClick={openVendorAuth}>
+                    <Button className="bg-gradient-orange shadow-orange" onClick={openVendorAuth}>
                       Sou Fornecedor
                     </Button>
                   </>

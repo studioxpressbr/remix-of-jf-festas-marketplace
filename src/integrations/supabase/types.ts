@@ -14,6 +14,94 @@ export type Database = {
   }
   public: {
     Tables: {
+      categories: {
+        Row: {
+          created_at: string
+          emoji: string | null
+          id: string
+          is_approved: boolean
+          name: string
+          parent_id: string | null
+          slug: string
+          suggested_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          is_approved?: boolean
+          name: string
+          parent_id?: string | null
+          slug: string
+          suggested_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          emoji?: string | null
+          id?: string
+          is_approved?: boolean
+          name?: string
+          parent_id?: string | null
+          slug?: string
+          suggested_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "categories_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      coupons: {
+        Row: {
+          code: string
+          created_at: string
+          current_uses: number
+          discount_type: string
+          discount_value: number
+          expires_at: string
+          id: string
+          is_active: boolean
+          max_uses: number | null
+          vendor_id: string
+        }
+        Insert: {
+          code: string
+          created_at?: string
+          current_uses?: number
+          discount_type: string
+          discount_value: number
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          vendor_id: string
+        }
+        Update: {
+          code?: string
+          created_at?: string
+          current_uses?: number
+          discount_type?: string
+          discount_value?: number
+          expires_at?: string
+          id?: string
+          is_active?: boolean
+          max_uses?: number | null
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "coupons_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads_access: {
         Row: {
           created_at: string
@@ -138,6 +226,7 @@ export type Database = {
         Row: {
           comment: string | null
           created_at: string
+          event_date: string | null
           id: string
           quote_id: string
           rating: number
@@ -147,6 +236,7 @@ export type Database = {
         Insert: {
           comment?: string | null
           created_at?: string
+          event_date?: string | null
           id?: string
           quote_id: string
           rating: number
@@ -156,6 +246,7 @@ export type Database = {
         Update: {
           comment?: string | null
           created_at?: string
+          event_date?: string | null
           id?: string
           quote_id?: string
           rating?: number
@@ -186,44 +277,120 @@ export type Database = {
           },
         ]
       }
+      terms_acceptance: {
+        Row: {
+          accepted_at: string
+          id: string
+          ip_address: string | null
+          terms_version: string
+          user_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          id?: string
+          ip_address?: string | null
+          terms_version?: string
+          user_id: string
+        }
+        Update: {
+          accepted_at?: string
+          id?: string
+          ip_address?: string | null
+          terms_version?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["admin_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["admin_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["admin_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
       vendors: {
         Row: {
+          approval_status: string
+          approved_at: string | null
+          approved_by: string | null
           business_name: string
           category: Database["public"]["Enums"]["vendor_category"]
+          category_id: string | null
           created_at: string
+          custom_category: string | null
           description: string | null
           id: string
           images: string[] | null
+          is_approved: boolean
           neighborhood: string | null
           profile_id: string
+          stripe_customer_id: string | null
+          submitted_at: string | null
           subscription_expiry: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
         }
         Insert: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           business_name: string
           category?: Database["public"]["Enums"]["vendor_category"]
+          category_id?: string | null
           created_at?: string
+          custom_category?: string | null
           description?: string | null
           id?: string
           images?: string[] | null
+          is_approved?: boolean
           neighborhood?: string | null
           profile_id: string
+          stripe_customer_id?: string | null
+          submitted_at?: string | null
           subscription_expiry?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
         }
         Update: {
+          approval_status?: string
+          approved_at?: string | null
+          approved_by?: string | null
           business_name?: string
           category?: Database["public"]["Enums"]["vendor_category"]
+          category_id?: string | null
           created_at?: string
+          custom_category?: string | null
           description?: string | null
           id?: string
           images?: string[] | null
+          is_approved?: boolean
           neighborhood?: string | null
           profile_id?: string
+          stripe_customer_id?: string | null
+          submitted_at?: string | null
           subscription_expiry?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
         }
         Relationships: [
+          {
+            foreignKeyName: "vendors_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "vendors_profile_id_fkey"
             columns: ["profile_id"]
@@ -238,9 +405,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      has_admin_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["admin_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
+      admin_role: "admin" | "moderator" | "user"
       app_role: "vendor" | "client"
       payment_status: "pending" | "paid"
       quote_status: "open" | "unlocked" | "completed" | "cancelled"
@@ -378,6 +552,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      admin_role: ["admin", "moderator", "user"],
       app_role: ["vendor", "client"],
       payment_status: ["pending", "paid"],
       quote_status: ["open", "unlocked", "completed", "cancelled"],

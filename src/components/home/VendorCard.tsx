@@ -12,7 +12,7 @@ interface Vendor {
   category: string;
   description: string | null;
   neighborhood: string | null;
-  images: string[];
+  images: string[] | null;
 }
 
 interface VendorCardProps {
