@@ -16,3 +16,14 @@ export const CATEGORY_COLORS: Record<string, string> = {
 
 export const SUBSCRIPTION_PRICE = 99; // R$ 99/year
 export const LEAD_PRICE = 2; // R$ 2/lead
+
+// Stripe Product & Price IDs
+export const STRIPE_ANNUAL_PLAN = {
+  priceId: 'price_1StuHiRDc1lDOFiCCvZkwhg9',
+  productId: 'prod_TrdYUtmHlctYqF',
+};
+
+export const STRIPE_LEAD_CREDITS = {
+  priceId: 'price_1StuLVRDc1lDOFiCfmHwuIrg',
+  productId: 'prod_Trdc7wGUjzkUS8',
+};
