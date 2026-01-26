@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Index from "./pages/Index";
 import VendorProfile from "./pages/VendorProfile";
 import VendorDashboard from "./pages/VendorDashboard";
+import VendorOnboarding from "./pages/VendorOnboarding";
 import Buscar from "./pages/Buscar";
 import Termos from "./pages/Termos";
 import CategoryPage from "./pages/CategoryPage";
@@ -27,6 +28,7 @@ const App = () => (
           <Route path="/" element={<Index />} />
           <Route path="/vendor/:id" element={<VendorProfile />} />
           <Route path="/dashboard" element={<VendorDashboard />} />
+          <Route path="/cadastro-fornecedor" element={<VendorOnboarding />} />
           <Route path="/buscar" element={<Buscar />} />
           <Route path="/termos" element={<Termos />} />
           <Route path="/precos" element={<Precos />} />

@@ -87,6 +87,14 @@ export function Header() {
                 Minha Área
               </Link>
             )}
+            {!user && (
+              <Link
+                to="/cadastro-fornecedor"
+                className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
+              >
+                Seja Fornecedor
+              </Link>
+            )}
           </nav>
 
           {/* Auth Buttons / User Menu */}
@@ -172,6 +180,15 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Minha Área
+                </Link>
+              )}
+              {!user && (
+                <Link
+                  to="/cadastro-fornecedor"
+                  className="text-sm font-medium text-primary"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Seja Fornecedor
                 </Link>
               )}
               <a
