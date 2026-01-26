@@ -11,6 +11,8 @@ import Termos from "./pages/Termos";
 import CategoryPage from "./pages/CategoryPage";
 import PagamentoSucesso from "./pages/PagamentoSucesso";
 import LeadDesbloqueado from "./pages/LeadDesbloqueado";
+import Precos from "./pages/Precos";
+import Admin from "./pages/Admin";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +29,8 @@ const App = () => (
           <Route path="/dashboard" element={<VendorDashboard />} />
           <Route path="/buscar" element={<Buscar />} />
           <Route path="/termos" element={<Termos />} />
+          <Route path="/precos" element={<Precos />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="/categoria/:slug" element={<CategoryPage />} />
           <Route path="/pagamento-sucesso" element={<PagamentoSucesso />} />
           <Route path="/lead-desbloqueado" element={<LeadDesbloqueado />} />
