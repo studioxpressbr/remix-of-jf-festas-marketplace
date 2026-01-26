@@ -73,6 +73,12 @@ export function Header() {
               <Search className="h-4 w-4" />
               Buscar
             </Link>
+            <Link
+              to="/precos"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Preços
+            </Link>
             {user && profile?.role === 'vendor' && (
               <Link
                 to="/dashboard"
@@ -151,6 +157,13 @@ export function Header() {
               >
                 <Search className="h-4 w-4" />
                 Buscar
+              </Link>
+              <Link
+                to="/precos"
+                className="text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Preços
               </Link>
               {user && profile?.role === 'vendor' && (
                 <Link
