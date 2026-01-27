@@ -1,1 +1,23 @@
 project_id = "zmkykifewxehtgxthpof"
+
+[auth.email]
+# Override default email templates
+[auth.email.template.recovery]
+subject = "JF Festas - Recuperação de Senha"
+content_path = "./templates/recovery.html"
+
+[auth.email.template.confirmation]
+subject = "JF Festas - Confirme seu Email"
+content_path = "./templates/confirmation.html"
+
+[auth.email.template.invite]
+subject = "JF Festas - Você foi convidado!"
+content_path = "./templates/invite.html"
+
+[auth.email.template.magic_link]
+subject = "JF Festas - Link de Acesso"
+content_path = "./templates/magic_link.html"
+
+[auth.email.template.email_change]
+subject = "JF Festas - Confirme a Alteração de Email"
+content_path = "./templates/email_change.html"
