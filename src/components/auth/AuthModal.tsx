@@ -29,13 +29,14 @@ interface AuthModalProps {
   mode: 'client' | 'vendor';
 }
 
-type Step = 'auth' | 'vendor-details';
+type Step = 'auth' | 'vendor-details' | 'forgot-password';
 
 export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
   const [step, setStep] = useState<Step>('auth');
   const [isLogin, setIsLogin] = useState(false);
   const [loading, setLoading] = useState(false);
   const [images, setImages] = useState<File[]>([]);
+  const [resetEmailSent, setResetEmailSent] = useState(false);
   const { toast } = useToast();
   const navigate = useNavigate();
 
@@ -63,6 +64,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
     setNeighborhood('');
     setDescription('');
     setImages([]);
+    setResetEmailSent(false);
   };
 
   const handleClose = () => {
@@ -122,6 +124,33 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
       toast({
         title: 'Erro',
         description: error.message || 'Ocorreu um erro. Tente novamente.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      
+      if (error) throw error;
+
+      setResetEmailSent(true);
+      toast({
+        title: 'Email enviado!',
+        description: 'Verifique sua caixa de entrada para redefinir sua senha.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Erro',
+        description: error.message || 'Não foi possível enviar o email.',
         variant: 'destructive',
       });
     } finally {
@@ -191,6 +220,8 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
           <DialogTitle className="font-display text-2xl">
             {step === 'auth' ? (
               isLogin ? 'Entrar' : mode === 'vendor' ? 'Cadastro de Fornecedor' : 'Cadastro de Cliente'
+            ) : step === 'forgot-password' ? (
+              'Recuperar Senha'
             ) : (
               'Complete seu Perfil'
             )}
@@ -202,6 +233,8 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
               ) : (
                 'Encontre os melhores fornecedores gratuitamente'
               )
+            ) : step === 'forgot-password' ? (
+              'Digite seu email para receber o link de recuperação'
             ) : (
               'Adicione informações sobre seu negócio'
             )}
@@ -266,6 +299,18 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
               {isLogin ? 'Entrar' : 'Continuar'}
             </Button>
 
+            {isLogin && (
+              <p className="text-center">
+                <button
+                  type="button"
+                  onClick={() => setStep('forgot-password')}
+                  className="text-sm text-muted-foreground hover:text-primary hover:underline"
+                >
+                  Esqueci minha senha
+                </button>
+              </p>
+            )}
+
             <p className="text-center text-sm text-muted-foreground">
               {isLogin ? 'Não tem conta?' : 'Já tem conta?'}{' '}
               <button
@@ -277,6 +322,60 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
               </button>
             </p>
           </form>
+        ) : step === 'forgot-password' ? (
+          <div className="space-y-4">
+            {resetEmailSent ? (
+              <div className="space-y-4 text-center">
+                <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
+                  <svg className="h-6 w-6 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                  </svg>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Enviamos um link de recuperação para <strong>{email}</strong>. Verifique sua caixa de entrada.
+                </p>
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => {
+                    setStep('auth');
+                    setResetEmailSent(false);
+                  }}
+                >
+                  Voltar ao login
+                </Button>
+              </div>
+            ) : (
+              <form onSubmit={handleForgotPassword} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="resetEmail">Email</Label>
+                  <Input
+                    id="resetEmail"
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="seu@email.com"
+                  />
+                </div>
+
+                <Button type="submit" className="w-full" disabled={loading}>
+                  {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                  Enviar link de recuperação
+                </Button>
+
+                <p className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => setStep('auth')}
+                    className="text-sm text-muted-foreground hover:text-primary hover:underline"
+                  >
+                    Voltar ao login
+                  </button>
+                </p>
+              </form>
+            )}
+          </div>
         ) : (
           <form onSubmit={handleVendorComplete} className="space-y-4">
             <div className="space-y-2">
