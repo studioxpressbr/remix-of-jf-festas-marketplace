@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Alteração de Email - JF Festas</title>
+</head>
+<body style="margin: 0; padding: 0; background-color: #f8f7f5; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+  <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="background-color: #f8f7f5;">
+    <tr>
+      <td style="padding: 40px 20px;">
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 16px; box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);">
+          <!-- Header with Logo -->
+          <tr>
+            <td style="padding: 40px 40px 24px 40px; text-align: center; background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); border-radius: 16px 16px 0 0;">
+              <img src="https://zmkykifewxehtgxthpof.supabase.co/storage/v1/object/public/vendor-images/branding%2Flogo-jffestas.webp" alt="JF Festas" style="max-width: 180px; height: auto;">
+            </td>
+          </tr>
+          
+          <!-- Content -->
+          <tr>
+            <td style="padding: 40px;">
+              <h1 style="margin: 0 0 16px 0; font-size: 28px; font-weight: 600; color: #2d3a3a; font-family: Georgia, 'Times New Roman', serif; text-align: center;">
+                Confirme a Alteração de Email ✉️
+              </h1>
+              
+              <p style="margin: 0 0 24px 0; font-size: 16px; line-height: 1.6; color: #4a5a5a; text-align: center;">
+                Você solicitou a alteração do endereço de email da sua conta no <strong>JF Festas</strong>.
+              </p>
+              
+              <p style="margin: 0 0 32px 0; font-size: 16px; line-height: 1.6; color: #4a5a5a; text-align: center;">
+                Clique no botão abaixo para confirmar esta alteração:
+              </p>
+              
+              <!-- CTA Button -->
+              <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%">
+                <tr>
+                  <td style="text-align: center;">
+                    <a href="{{ .ConfirmationURL }}" style="display: inline-block; padding: 16px 40px; background: linear-gradient(135deg, #f97316 0%, #fb923c 100%); color: #ffffff; font-size: 16px; font-weight: 600; text-decoration: none; border-radius: 12px; box-shadow: 0 8px 30px rgba(249, 115, 22, 0.35);">
+                      Confirmar Novo Email
+                    </a>
+                  </td>
+                </tr>
+              </table>
+              
+              <p style="margin: 32px 0 0 0; font-size: 14px; line-height: 1.6; color: #6b7a7a; text-align: center;">
+                Se você não solicitou esta alteração, não clique no link acima e entre em contato conosco imediatamente.
+              </p>
+              
+              <p style="margin: 16px 0 0 0; font-size: 14px; line-height: 1.6; color: #6b7a7a; text-align: center;">
+                Este link expira em <strong>24 horas</strong>.
+              </p>
+            </td>
+          </tr>
+          
+          <!-- Divider -->
+          <tr>
+            <td style="padding: 0 40px;">
+              <div style="height: 1px; background: linear-gradient(90deg, transparent, #e5e5e5, transparent);"></div>
+            </td>
+          </tr>
+          
+          <!-- Footer -->
+          <tr>
+            <td style="padding: 24px 40px 32px 40px; text-align: center;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #2b8a8a; font-weight: 500;">
+                JF Festas - O melhor marketplace de festas
+              </p>
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                Juiz de Fora, MG - Brasil
+              </p>
+            </td>
+          </tr>
+        </table>
+        
+        <!-- Secondary Footer -->
+        <table role="presentation" cellspacing="0" cellpadding="0" border="0" width="100%" style="max-width: 600px; margin: 24px auto 0 auto;">
+          <tr>
+            <td style="text-align: center;">
+              <p style="margin: 0; font-size: 12px; color: #9ca3af;">
+                Caso o botão não funcione, copie e cole este link no seu navegador:
+              </p>
+              <p style="margin: 8px 0 0 0; font-size: 12px; color: #f97316; word-break: break-all;">
+                {{ .ConfirmationURL }}
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>
