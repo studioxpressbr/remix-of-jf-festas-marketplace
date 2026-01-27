@@ -14,6 +14,7 @@ import PagamentoSucesso from "./pages/PagamentoSucesso";
 import LeadDesbloqueado from "./pages/LeadDesbloqueado";
 import Precos from "./pages/Precos";
 import Admin from "./pages/Admin";
+import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -33,6 +34,7 @@ const App = () => (
           <Route path="/termos" element={<Termos />} />
           <Route path="/precos" element={<Precos />} />
           <Route path="/admin" element={<Admin />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/categoria/:slug" element={<CategoryPage />} />
           <Route path="/pagamento-sucesso" element={<PagamentoSucesso />} />
           <Route path="/lead-desbloqueado" element={<LeadDesbloqueado />} />
