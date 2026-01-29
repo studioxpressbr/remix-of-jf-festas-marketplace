@@ -117,7 +117,7 @@ function OnboardingContent() {
         if (data.approval_status === 'pending') {
           setSubmitted(true);
         } else {
-          navigate('/painel-fornecedor');
+          navigate('/dashboard');
         }
         setExistingVendor(true);
       } else {
