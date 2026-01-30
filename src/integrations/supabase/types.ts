@@ -322,6 +322,57 @@ export type Database = {
         }
         Relationships: []
       }
+      vendor_credits: {
+        Row: {
+          amount: number
+          balance_after: number
+          created_at: string
+          description: string | null
+          id: string
+          quote_id: string | null
+          stripe_session_id: string | null
+          transaction_type: string
+          vendor_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          quote_id?: string | null
+          stripe_session_id?: string | null
+          transaction_type: string
+          vendor_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          quote_id?: string | null
+          stripe_session_id?: string | null
+          transaction_type?: string
+          vendor_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendor_credits_quote_id_fkey"
+            columns: ["quote_id"]
+            isOneToOne: false
+            referencedRelation: "quotes"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendor_credits_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       vendors: {
         Row: {
           approval_status: string
@@ -405,6 +456,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      get_vendor_balance: { Args: { p_vendor_id: string }; Returns: number }
       has_admin_role: {
         Args: {
           _role: Database["public"]["Enums"]["admin_role"]

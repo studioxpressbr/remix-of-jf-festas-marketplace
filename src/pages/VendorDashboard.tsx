@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { Header } from '@/components/layout/Header';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CreditBalanceCard } from '@/components/vendor/CreditBalanceCard';
 import { supabase } from '@/integrations/supabase/client';
-import { LEAD_PRICE, SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
+import { SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -21,7 +22,6 @@ import {
   CheckCircle,
   AlertCircle,
   Crown,
-  ExternalLink,
   Loader2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -50,14 +50,44 @@ interface VendorInfo {
   business_name: string;
 }
 
+interface CreditTransaction {
+  id: string;
+  amount: number;
+  balance_after: number;
+  transaction_type: string;
+  description: string | null;
+  created_at: string;
+}
+
 function DashboardContent() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuthContext();
   const { toast } = useToast();
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [vendorInfo, setVendorInfo] = useState<VendorInfo | null>(null);
+  const [creditBalance, setCreditBalance] = useState<number>(0);
+  const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState<string | null>(null);
+  const [purchaseLoading, setPurchaseLoading] = useState(false);
+
+  const fetchCredits = async (userId: string) => {
+    // Fetch credit balance and transactions
+    const { data: creditsData } = await supabase
+      .from('vendor_credits')
+      .select('*')
+      .eq('vendor_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (creditsData && creditsData.length > 0) {
+      setCreditBalance(creditsData[0].balance_after);
+      setCreditTransactions(creditsData);
+    } else {
+      setCreditBalance(0);
+      setCreditTransactions([]);
+    }
+  };
 
   useEffect(() => {
     if (authLoading) return;
@@ -94,6 +124,9 @@ function DashboardContent() {
         setQuotes(quotesData as Quote[]);
       }
 
+      // Fetch credits
+      await fetchCredits(user!.id);
+
       setLoading(false);
     }
 
@@ -104,16 +137,47 @@ function DashboardContent() {
     setUnlocking(quoteId);
     
     try {
-      // Call Stripe checkout for lead credit
-      const { data, error } = await supabase.functions.invoke('buy-lead-credit', {
+      // Use credit to unlock lead
+      const { data, error } = await supabase.functions.invoke('use-credit', {
         body: { quoteId },
       });
 
       if (error) throw error;
 
-      if (data?.url) {
-        // Redirect to Stripe checkout
-        window.open(data.url, '_blank');
+      if (data?.success) {
+        toast({
+          title: 'Contato liberado!',
+          description: 'Agora você pode ver os dados do cliente.',
+        });
+        
+        // Update local state
+        setCreditBalance(data.newBalance);
+        
+        // Refresh quotes to show unlocked state
+        const { data: updatedQuotes } = await supabase
+          .from('quotes')
+          .select(`
+            *,
+            profiles!quotes_client_id_fkey(full_name, whatsapp, email),
+            leads_access(payment_status)
+          `)
+          .eq('vendor_id', user!.id)
+          .order('created_at', { ascending: false });
+
+        if (updatedQuotes) {
+          setQuotes(updatedQuotes as Quote[]);
+        }
+
+        // Refresh credit transactions
+        await fetchCredits(user!.id);
+      } else if (data?.needsCredits) {
+        toast({
+          title: 'Saldo insuficiente',
+          description: 'Compre créditos para liberar este contato.',
+          variant: 'destructive',
+        });
+      } else {
+        throw new Error(data?.message || 'Erro ao liberar contato');
       }
     } catch (error: unknown) {
       toast({
@@ -123,6 +187,29 @@ function DashboardContent() {
       });
     } finally {
       setUnlocking(null);
+    }
+  };
+
+  const handlePurchaseCredits = async (quantity: number) => {
+    setPurchaseLoading(true);
+    
+    try {
+      const { data, error } = await supabase.functions.invoke('purchase-credits', {
+        body: { quantity },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: unknown) {
+      toast({
+        title: 'Erro ao processar',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive',
+      });
+      setPurchaseLoading(false);
     }
   };
 
@@ -174,52 +261,64 @@ function DashboardContent() {
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-8">
-        {/* Subscription Status Card */}
-        <Card className={cn(
-          'mb-8 border-2',
-          vendorInfo?.subscription_status === 'active'
-            ? 'border-sage bg-sage-light/20'
-            : 'border-coral-light bg-coral-light/10'
-        )}>
-          <CardContent className="flex flex-col items-center justify-between gap-4 py-6 sm:flex-row">
-            <div className="flex items-center gap-4">
-              <div className={cn(
-                'rounded-full p-3',
-                vendorInfo?.subscription_status === 'active'
-                  ? 'bg-sage'
-                  : 'bg-coral-light'
-              )}>
-                <Crown className="h-6 w-6 text-primary-foreground" />
+        {/* Two-column layout for subscription and credits */}
+        <div className="mb-8 grid gap-6 md:grid-cols-2">
+          {/* Subscription Status Card */}
+          <Card className={cn(
+            'border-2',
+            vendorInfo?.subscription_status === 'active'
+              ? 'border-sage bg-sage-light/20'
+              : 'border-coral-light bg-coral-light/10'
+          )}>
+            <CardContent className="flex flex-col gap-4 py-6">
+              <div className="flex items-center gap-4">
+                <div className={cn(
+                  'rounded-full p-3',
+                  vendorInfo?.subscription_status === 'active'
+                    ? 'bg-sage'
+                    : 'bg-coral-light'
+                )}>
+                  <Crown className="h-6 w-6 text-primary-foreground" />
+                </div>
+                <div>
+                  <h2 className="font-display text-xl font-semibold">
+                    {vendorInfo?.business_name}
+                  </h2>
+                  <p className="text-sm text-muted-foreground">
+                    {vendorInfo?.subscription_status === 'active' ? (
+                      <>
+                        <CheckCircle className="mr-1 inline h-4 w-4 text-sage" />
+                        Assinatura ativa
+                      </>
+                    ) : (
+                      <>
+                        <AlertCircle className="mr-1 inline h-4 w-4 text-coral" />
+                        Assinatura inativa
+                      </>
+                    )}
+                  </p>
+                </div>
               </div>
-              <div>
-                <h2 className="font-display text-xl font-semibold">
-                  {vendorInfo?.business_name}
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  {vendorInfo?.subscription_status === 'active' ? (
-                    <>
-                      <CheckCircle className="mr-1 inline h-4 w-4 text-sage" />
-                      Assinatura ativa
-                    </>
-                  ) : (
-                    <>
-                      <AlertCircle className="mr-1 inline h-4 w-4 text-coral" />
-                      Assinatura inativa
-                    </>
-                  )}
-                </p>
-              </div>
-            </div>
-            {vendorInfo?.subscription_status !== 'active' && (
-              <Button
-                onClick={handleActivateSubscription}
-                className="bg-gradient-coral shadow-coral"
-              >
-                Ativar por R$ {SUBSCRIPTION_PRICE}/ano
-              </Button>
-            )}
-          </CardContent>
-        </Card>
+              {vendorInfo?.subscription_status !== 'active' && (
+                <Button
+                  onClick={handleActivateSubscription}
+                  className="bg-gradient-coral shadow-coral"
+                >
+                  Ativar por R$ {SUBSCRIPTION_PRICE}/ano
+                </Button>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* Credit Balance Card */}
+          <CreditBalanceCard
+            balance={creditBalance}
+            transactions={creditTransactions}
+            loading={loading}
+            onPurchase={handlePurchaseCredits}
+            purchaseLoading={purchaseLoading}
+          />
+        </div>
 
         {/* Quotes Section */}
         <h2 className="mb-4 font-display text-2xl font-semibold">
@@ -300,15 +399,24 @@ function DashboardContent() {
                         ) : (
                           <Button
                             onClick={() => handleUnlock(quote.id)}
-                            disabled={unlocking === quote.id || vendorInfo?.subscription_status !== 'active'}
+                            disabled={
+                              unlocking === quote.id || 
+                              vendorInfo?.subscription_status !== 'active' ||
+                              creditBalance < 1
+                            }
                             className="bg-gradient-coral shadow-coral"
                           >
                             {unlocking === quote.id ? (
-                              'Processando...'
+                              <>
+                                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                                Liberando...
+                              </>
+                            ) : creditBalance < 1 ? (
+                              'Sem créditos'
                             ) : (
                               <>
                                 <Lock className="mr-2 h-4 w-4" />
-                                Liberar (R$ {LEAD_PRICE})
+                                Usar 1 crédito
                               </>
                             )}
                           </Button>

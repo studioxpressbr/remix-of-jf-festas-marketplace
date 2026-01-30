@@ -12,6 +12,7 @@ import Termos from "./pages/Termos";
 import CategoryPage from "./pages/CategoryPage";
 import PagamentoSucesso from "./pages/PagamentoSucesso";
 import LeadDesbloqueado from "./pages/LeadDesbloqueado";
+import CreditosSucesso from "./pages/CreditosSucesso";
 import Precos from "./pages/Precos";
 import Admin from "./pages/Admin";
 import ResetPassword from "./pages/ResetPassword";
@@ -38,6 +39,7 @@ const App = () => (
           <Route path="/categoria/:slug" element={<CategoryPage />} />
           <Route path="/pagamento-sucesso" element={<PagamentoSucesso />} />
           <Route path="/lead-desbloqueado" element={<LeadDesbloqueado />} />
+          <Route path="/creditos-sucesso" element={<CreditosSucesso />} />
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
         </Routes>
