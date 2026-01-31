@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditBalanceCard } from '@/components/vendor/CreditBalanceCard';
+import { PendingApprovalCard } from '@/components/vendor/PendingApprovalCard';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -45,9 +46,19 @@ interface Quote {
 }
 
 interface VendorInfo {
+  id: string;
   subscription_status: string;
   subscription_expiry: string | null;
   business_name: string;
+  category: string;
+  custom_category: string | null;
+  description: string | null;
+  neighborhood: string | null;
+  images: string[] | null;
+  approval_status: string;
+  is_approved: boolean;
+  submitted_at: string | null;
+  created_at: string;
 }
 
 interface CreditTransaction {
@@ -98,15 +109,15 @@ function DashboardContent() {
     }
 
     async function fetchData() {
-      // Fetch vendor info
+      // Fetch vendor info with all fields needed for pending state
       const { data: vendorData } = await supabase
         .from('vendors')
-        .select('subscription_status, subscription_expiry, business_name')
+        .select('id, subscription_status, subscription_expiry, business_name, category, custom_category, description, neighborhood, images, approval_status, is_approved, submitted_at, created_at')
         .eq('profile_id', user!.id)
         .maybeSingle();
 
       if (vendorData) {
-        setVendorInfo(vendorData);
+        setVendorInfo(vendorData as VendorInfo);
       }
 
       // Fetch quotes
@@ -257,68 +268,95 @@ function DashboardContent() {
     );
   }
 
+  // Show pending approval state if vendor is not approved
+  const isPendingApproval = vendorInfo && !vendorInfo.is_approved;
+
   return (
     <div className="min-h-screen bg-background">
       <Header />
       <main className="container py-8">
-        {/* Two-column layout for subscription and credits */}
-        <div className="mb-8 grid gap-6 md:grid-cols-2">
-          {/* Subscription Status Card */}
-          <Card className={cn(
-            'border-2',
-            vendorInfo?.subscription_status === 'active'
-              ? 'border-sage bg-sage-light/20'
-              : 'border-coral-light bg-coral-light/10'
-          )}>
-            <CardContent className="flex flex-col gap-4 py-6">
-              <div className="flex items-center gap-4">
-                <div className={cn(
-                  'rounded-full p-3',
-                  vendorInfo?.subscription_status === 'active'
-                    ? 'bg-sage'
-                    : 'bg-coral-light'
-                )}>
-                  <Crown className="h-6 w-6 text-primary-foreground" />
-                </div>
-                <div>
-                  <h2 className="font-display text-xl font-semibold">
-                    {vendorInfo?.business_name}
-                  </h2>
-                  <p className="text-sm text-muted-foreground">
-                    {vendorInfo?.subscription_status === 'active' ? (
-                      <>
-                        <CheckCircle className="mr-1 inline h-4 w-4 text-sage" />
-                        Assinatura ativa
-                      </>
-                    ) : (
-                      <>
-                        <AlertCircle className="mr-1 inline h-4 w-4 text-coral" />
-                        Assinatura inativa
-                      </>
-                    )}
-                  </p>
-                </div>
-              </div>
-              {vendorInfo?.subscription_status !== 'active' && (
-                <Button
-                  onClick={handleActivateSubscription}
-                  className="bg-gradient-coral shadow-coral"
-                >
-                  Ativar por R$ {SUBSCRIPTION_PRICE}/ano
-                </Button>
-              )}
+        {/* Show pending approval card if not approved */}
+        {isPendingApproval ? (
+          <PendingApprovalCard vendor={vendorInfo} />
+        ) : !vendorInfo ? (
+          // No vendor record found - redirect to onboarding
+          <Card className="bg-gradient-card">
+            <CardContent className="py-12 text-center">
+              <span className="mb-4 block text-5xl">📝</span>
+              <h3 className="font-display text-lg font-semibold">
+                Complete seu cadastro
+              </h3>
+              <p className="mt-2 text-sm text-muted-foreground mb-4">
+                Você ainda não completou o cadastro do seu negócio.
+              </p>
+              <Button 
+                onClick={() => navigate('/cadastro-fornecedor')}
+                className="bg-gradient-coral shadow-coral"
+              >
+                Completar Cadastro
+              </Button>
             </CardContent>
           </Card>
+        ) : (
+          <>
+            {/* Two-column layout for subscription and credits */}
+            <div className="mb-8 grid gap-6 md:grid-cols-2">
+              {/* Subscription Status Card */}
+              <Card className={cn(
+                'border-2',
+                vendorInfo?.subscription_status === 'active'
+                  ? 'border-sage bg-sage-light/20'
+                  : 'border-coral-light bg-coral-light/10'
+              )}>
+                <CardContent className="flex flex-col gap-4 py-6">
+                  <div className="flex items-center gap-4">
+                    <div className={cn(
+                      'rounded-full p-3',
+                      vendorInfo?.subscription_status === 'active'
+                        ? 'bg-sage'
+                        : 'bg-coral-light'
+                    )}>
+                      <Crown className="h-6 w-6 text-primary-foreground" />
+                    </div>
+                    <div>
+                      <h2 className="font-display text-xl font-semibold">
+                        {vendorInfo?.business_name}
+                      </h2>
+                      <p className="text-sm text-muted-foreground">
+                        {vendorInfo?.subscription_status === 'active' ? (
+                          <>
+                            <CheckCircle className="mr-1 inline h-4 w-4 text-sage" />
+                            Assinatura ativa
+                          </>
+                        ) : (
+                          <>
+                            <AlertCircle className="mr-1 inline h-4 w-4 text-coral" />
+                            Assinatura inativa
+                          </>
+                        )}
+                      </p>
+                    </div>
+                  </div>
+                  {vendorInfo?.subscription_status !== 'active' && (
+                    <Button
+                      onClick={handleActivateSubscription}
+                      className="bg-gradient-coral shadow-coral"
+                    >
+                      Ativar por R$ {SUBSCRIPTION_PRICE}/ano
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
 
-          {/* Credit Balance Card */}
-          <CreditBalanceCard
-            balance={creditBalance}
-            transactions={creditTransactions}
-            loading={loading}
-            onPurchase={handlePurchaseCredits}
-            purchaseLoading={purchaseLoading}
-          />
-        </div>
+              {/* Credit Balance Card */}
+              <CreditBalanceCard
+                balance={creditBalance}
+                transactions={creditTransactions}
+                loading={loading}
+                onPurchase={handlePurchaseCredits}
+                purchaseLoading={purchaseLoading}
+              />
+            </div>
 
         {/* Quotes Section */}
         <h2 className="mb-4 font-display text-2xl font-semibold">
@@ -431,6 +469,8 @@ function DashboardContent() {
               );
             })}
           </div>
+        )}
+        </>
         )}
       </main>
     </div>
