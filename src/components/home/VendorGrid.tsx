@@ -29,6 +29,7 @@ export function VendorGrid({ categoryFilter }: VendorGridProps) {
         .from('vendors')
         .select('*')
         .eq('subscription_status', 'active')
+        .eq('is_approved', true)
         .limit(20);
 
       if (categoryFilter) {
