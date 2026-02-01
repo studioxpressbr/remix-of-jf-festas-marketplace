@@ -57,7 +57,15 @@ function SearchPage() {
         .select('*');
 
       if (searchTerm) {
-        query = query.or(`business_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,neighborhood.ilike.%${searchTerm}%`);
+        // Sanitize search term: remove special SQL/ILIKE characters and limit length
+        const sanitizedTerm = searchTerm
+          .slice(0, 100) // Limit length
+          .replace(/[%_\\[\]]/g, '') // Remove ILIKE special chars
+          .trim();
+        
+        if (sanitizedTerm.length > 0) {
+          query = query.or(`business_name.ilike.%${sanitizedTerm}%,description.ilike.%${sanitizedTerm}%,neighborhood.ilike.%${sanitizedTerm}%`);
+        }
       }
 
       if (selectedCategory) {

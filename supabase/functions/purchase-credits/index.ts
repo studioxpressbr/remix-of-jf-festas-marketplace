@@ -2,9 +2,20 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const ALLOWED_ORIGINS = [
+  "https://jffestas.lovable.app",
+  "https://id-preview--97dc209a-b9ca-4e21-a536-66376a89d53f.lovable.app",
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed.replace('https://', 'https://')) || origin.includes('lovable.app'))
+    ? origin
+    : ALLOWED_ORIGINS[0];
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
 };
 
 const logStep = (step: string, details?: unknown) => {
@@ -15,6 +26,9 @@ const logStep = (step: string, details?: unknown) => {
 const CREDIT_PRICE_CENTS = 200;
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -56,7 +70,10 @@ serve(async (req) => {
       logStep("Found existing customer", { customerId });
     }
 
-    const origin = req.headers.get("origin") || "https://jffestas.lovable.app";
+    // Use allowed origin for redirect URLs
+    const redirectOrigin = origin && ALLOWED_ORIGINS.some(allowed => origin.includes('lovable.app'))
+      ? origin
+      : ALLOWED_ORIGINS[0];
 
     // Create checkout session for credit purchase
     const session = await stripe.checkout.sessions.create({
@@ -76,8 +93,8 @@ serve(async (req) => {
         },
       ],
       mode: "payment",
-      success_url: `${origin}/creditos-sucesso?session_id={CHECKOUT_SESSION_ID}&quantity=${quantity}`,
-      cancel_url: `${origin}/dashboard`,
+      success_url: `${redirectOrigin}/creditos-sucesso?session_id={CHECKOUT_SESSION_ID}&quantity=${quantity}`,
+      cancel_url: `${redirectOrigin}/dashboard`,
       metadata: {
         user_id: user.id,
         quantity: quantity.toString(),
@@ -94,8 +111,9 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
+    const origin = req.headers.get("origin");
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
       status: 500,
     });
   }
