@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { useAdminRole } from '@/hooks/useAdminRole';
@@ -8,6 +8,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import {
   Table,
   TableBody,
@@ -20,6 +23,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { cn } from '@/lib/utils';
 import {
   Shield,
   Users,
@@ -30,6 +34,11 @@ import {
   Eye,
   UserCheck,
   AlertTriangle,
+  Search,
+  CalendarIcon,
+  X,
+  FileText,
+  Coins,
 } from 'lucide-react';
 
 interface PendingVendor {
@@ -48,13 +57,16 @@ interface PendingVendor {
   } | null;
 }
 
-interface Profile {
+interface ProfileWithStats {
   id: string;
   full_name: string;
   email: string | null;
   whatsapp: string | null;
   role: 'vendor' | 'client';
   created_at: string;
+  credits: number;
+  quotes_requested: number;
+  quotes_received: number;
 }
 
 function AdminContent() {
@@ -64,9 +76,15 @@ function AdminContent() {
   const { toast } = useToast();
 
   const [pendingVendors, setPendingVendors] = useState<PendingVendor[]>([]);
-  const [allProfiles, setAllProfiles] = useState<Profile[]>([]);
+  const [allProfiles, setAllProfiles] = useState<ProfileWithStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
+
+  // Filter states
+  const [emailFilter, setEmailFilter] = useState('');
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [minQuotes, setMinQuotes] = useState<number | ''>('');
 
   useEffect(() => {
     if (authLoading || adminLoading) return;
@@ -103,18 +121,97 @@ function AdminContent() {
       setPendingVendors(vendorsData as unknown as PendingVendor[]);
     }
 
-    // Fetch all profiles
+    // Fetch all profiles with stats
     const { data: profilesData } = await supabase
       .from('profiles')
       .select('*')
       .order('created_at', { ascending: false });
 
     if (profilesData) {
-      setAllProfiles(profilesData as Profile[]);
+      // Fetch additional stats for each profile
+      const profilesWithStats = await Promise.all(
+        profilesData.map(async (profile) => {
+          // Get credits (for vendors)
+          let credits = 0;
+          if (profile.role === 'vendor') {
+            const { data: creditData } = await supabase
+              .from('vendor_credits')
+              .select('balance_after')
+              .eq('vendor_id', profile.id)
+              .order('created_at', { ascending: false })
+              .limit(1);
+            credits = creditData?.[0]?.balance_after || 0;
+          }
+
+          // Get quotes requested (as client)
+          const { count: quotesRequested } = await supabase
+            .from('quotes')
+            .select('*', { count: 'exact', head: true })
+            .eq('client_id', profile.id);
+
+          // Get quotes received (as vendor)
+          const { count: quotesReceived } = await supabase
+            .from('quotes')
+            .select('*', { count: 'exact', head: true })
+            .eq('vendor_id', profile.id);
+
+          return {
+            ...profile,
+            credits,
+            quotes_requested: quotesRequested || 0,
+            quotes_received: quotesReceived || 0,
+          } as ProfileWithStats;
+        })
+      );
+
+      setAllProfiles(profilesWithStats);
     }
 
     setLoading(false);
   }
+
+  // Filtered profiles
+  const filteredProfiles = useMemo(() => {
+    return allProfiles.filter((profile) => {
+      // Email filter
+      if (emailFilter && !profile.email?.toLowerCase().includes(emailFilter.toLowerCase())) {
+        return false;
+      }
+
+      // Date from filter
+      if (dateFrom && new Date(profile.created_at) < dateFrom) {
+        return false;
+      }
+
+      // Date to filter
+      if (dateTo) {
+        const endOfDay = new Date(dateTo);
+        endOfDay.setHours(23, 59, 59, 999);
+        if (new Date(profile.created_at) > endOfDay) {
+          return false;
+        }
+      }
+
+      // Min quotes filter
+      if (minQuotes !== '' && minQuotes > 0) {
+        const totalQuotes = profile.quotes_requested + profile.quotes_received;
+        if (totalQuotes < minQuotes) {
+          return false;
+        }
+      }
+
+      return true;
+    });
+  }, [allProfiles, emailFilter, dateFrom, dateTo, minQuotes]);
+
+  const clearFilters = () => {
+    setEmailFilter('');
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setMinQuotes('');
+  };
+
+  const hasActiveFilters = emailFilter || dateFrom || dateTo || minQuotes !== '';
 
   async function handleApprove(vendorId: string) {
     setProcessing(vendorId);
@@ -405,7 +502,98 @@ function AdminContent() {
                   Lista de todos os usuários cadastrados na plataforma
                 </CardDescription>
               </CardHeader>
-              <CardContent>
+              <CardContent className="space-y-4">
+                {/* Filters */}
+                <div className="flex flex-wrap gap-3 rounded-lg border bg-muted/30 p-4">
+                  <div className="flex items-center gap-2">
+                    <Search className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Buscar por e-mail..."
+                      value={emailFilter}
+                      onChange={(e) => setEmailFilter(e.target.value)}
+                      className="w-48"
+                    />
+                  </div>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-40 justify-start text-left font-normal",
+                          !dateFrom && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateFrom ? format(dateFrom, "dd/MM/yyyy") : "Data início"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateFrom}
+                        onSelect={setDateFrom}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className={cn(
+                          "w-40 justify-start text-left font-normal",
+                          !dateTo && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateTo ? format(dateTo, "dd/MM/yyyy") : "Data fim"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar
+                        mode="single"
+                        selected={dateTo}
+                        onSelect={setDateTo}
+                        initialFocus
+                        className="pointer-events-auto"
+                      />
+                    </PopoverContent>
+                  </Popover>
+
+                  <div className="flex items-center gap-2">
+                    <FileText className="h-4 w-4 text-muted-foreground" />
+                    <Input
+                      type="number"
+                      placeholder="Mín. cotações"
+                      value={minQuotes}
+                      onChange={(e) => setMinQuotes(e.target.value ? parseInt(e.target.value) : '')}
+                      className="w-32"
+                      min={0}
+                    />
+                  </div>
+
+                  {hasActiveFilters && (
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={clearFilters}
+                      className="text-muted-foreground"
+                    >
+                      <X className="mr-1 h-4 w-4" />
+                      Limpar
+                    </Button>
+                  )}
+                </div>
+
+                {hasActiveFilters && (
+                  <p className="text-sm text-muted-foreground">
+                    Mostrando {filteredProfiles.length} de {allProfiles.length} usuários
+                  </p>
+                )}
+
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -414,10 +602,22 @@ function AdminContent() {
                       <TableHead>WhatsApp</TableHead>
                       <TableHead>Tipo</TableHead>
                       <TableHead>Cadastro</TableHead>
+                      <TableHead className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <Coins className="h-3.5 w-3.5" />
+                          Créditos
+                        </div>
+                      </TableHead>
+                      <TableHead className="text-center">
+                        <div className="flex items-center justify-center gap-1">
+                          <FileText className="h-3.5 w-3.5" />
+                          Cotações
+                        </div>
+                      </TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {allProfiles.map((profile) => (
+                    {filteredProfiles.map((profile) => (
                       <TableRow key={profile.id}>
                         <TableCell className="font-medium">
                           {profile.full_name}
@@ -443,6 +643,33 @@ function AdminContent() {
                         </TableCell>
                         <TableCell>
                           {format(new Date(profile.created_at), "dd/MM/yyyy", { locale: ptBR })}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          {profile.role === 'vendor' ? (
+                            <Badge variant="outline" className="font-mono">
+                              {profile.credits}
+                            </Badge>
+                          ) : (
+                            <span className="text-muted-foreground">-</span>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-center">
+                          <div className="flex items-center justify-center gap-2">
+                            {profile.role === 'client' && profile.quotes_requested > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {profile.quotes_requested} pedidas
+                              </Badge>
+                            )}
+                            {profile.role === 'vendor' && profile.quotes_received > 0 && (
+                              <Badge variant="secondary" className="text-xs">
+                                {profile.quotes_received} recebidas
+                              </Badge>
+                            )}
+                            {((profile.role === 'client' && profile.quotes_requested === 0) ||
+                              (profile.role === 'vendor' && profile.quotes_received === 0)) && (
+                              <span className="text-muted-foreground">0</span>
+                            )}
+                          </div>
                         </TableCell>
                       </TableRow>
                     ))}
