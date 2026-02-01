@@ -10,7 +10,8 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { VENDOR_CATEGORIES, CATEGORY_COLORS } from '@/lib/constants';
-import { MapPin, ArrowLeft, MessageCircle, Phone, Mail } from 'lucide-react';
+import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
@@ -44,8 +45,36 @@ function VendorProfileContent() {
   const { isAdmin, loading: adminLoading } = useAdminRole();
   const [vendor, setVendor] = useState<VendorData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState(false);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+
+  const handleApproveVendor = async () => {
+    if (!vendor || !user) return;
+    
+    setApproving(true);
+    try {
+      const { error } = await supabase
+        .from('vendors')
+        .update({
+          is_approved: true,
+          approval_status: 'approved',
+          approved_at: new Date().toISOString(),
+          approved_by: user.id,
+        })
+        .eq('profile_id', vendor.profile_id);
+
+      if (error) throw error;
+
+      setVendor({ ...vendor, is_approved: true });
+      toast.success('Fornecedor aprovado com sucesso!');
+    } catch (error) {
+      console.error('Error approving vendor:', error);
+      toast.error('Erro ao aprovar fornecedor');
+    } finally {
+      setApproving(false);
+    }
+  };
 
   useEffect(() => {
     async function fetchVendor() {
@@ -187,14 +216,34 @@ function VendorProfileContent() {
               )}
             </div>
 
-            <Button
-              size="lg"
-              onClick={handleQuoteClick}
-              className="bg-gradient-coral shadow-coral"
-            >
-              <MessageCircle className="mr-2 h-4 w-4" />
-              Solicitar Cotação
-            </Button>
+            <div className="flex flex-wrap gap-3">
+              {/* Admin Approve Button */}
+              {isAdmin && vendor.is_approved === false && (
+                <Button
+                  size="lg"
+                  onClick={handleApproveVendor}
+                  disabled={approving}
+                  variant="default"
+                  className="bg-primary/90 hover:bg-primary"
+                >
+                  {approving ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <CheckCircle className="mr-2 h-4 w-4" />
+                  )}
+                  Aprovar Fornecedor
+                </Button>
+              )}
+
+              <Button
+                size="lg"
+                onClick={handleQuoteClick}
+                className="bg-gradient-coral shadow-coral"
+              >
+                <MessageCircle className="mr-2 h-4 w-4" />
+                Solicitar Cotação
+              </Button>
+            </div>
           </div>
 
           {/* Admin Contact Info */}
