@@ -115,7 +115,6 @@ export type Database = {
           id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           quote_id: string
-          transaction_id: string | null
           unlocked_at: string | null
           vendor_id: string
         }
@@ -124,7 +123,6 @@ export type Database = {
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           quote_id: string
-          transaction_id?: string | null
           unlocked_at?: string | null
           vendor_id: string
         }
@@ -133,7 +131,6 @@ export type Database = {
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           quote_id?: string
-          transaction_id?: string | null
           unlocked_at?: string | null
           vendor_id?: string
         }
@@ -150,6 +147,44 @@ export type Database = {
             columns: ["vendor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payment_transactions: {
+        Row: {
+          amount_cents: number | null
+          created_at: string
+          currency: string | null
+          id: string
+          leads_access_id: string
+          stripe_session_id: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          leads_access_id: string
+          stripe_session_id?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          amount_cents?: number | null
+          created_at?: string
+          currency?: string | null
+          id?: string
+          leads_access_id?: string
+          stripe_session_id?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_transactions_leads_access_id_fkey"
+            columns: ["leads_access_id"]
+            isOneToOne: false
+            referencedRelation: "leads_access"
             referencedColumns: ["id"]
           },
         ]
