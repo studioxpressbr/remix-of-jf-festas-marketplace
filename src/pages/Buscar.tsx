@@ -51,11 +51,10 @@ function SearchPage() {
     async function searchVendors() {
       setLoading(true);
       
+      // Use the public view which excludes sensitive fields
       let query = supabase
-        .from('vendors')
-        .select('*')
-        .eq('subscription_status', 'active')
-        .eq('is_approved', true);
+        .from('vendors_public' as any)
+        .select('*');
 
       if (searchTerm) {
         query = query.or(`business_name.ilike.%${searchTerm}%,description.ilike.%${searchTerm}%,neighborhood.ilike.%${searchTerm}%`);
@@ -67,7 +66,7 @@ function SearchPage() {
       }
 
       const { data } = await query.order('created_at', { ascending: false });
-      setVendors(data || []);
+      setVendors((data as unknown as Vendor[]) || []);
       setLoading(false);
     }
 
