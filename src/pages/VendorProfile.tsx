@@ -10,8 +10,9 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { VENDOR_CATEGORIES, CATEGORY_COLORS } from '@/lib/constants';
-import { MapPin, ArrowLeft, MessageCircle, Star } from 'lucide-react';
+import { MapPin, ArrowLeft, MessageCircle, Phone, Mail } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Carousel,
   CarouselContent,
@@ -31,6 +32,8 @@ interface VendorData {
   is_approved?: boolean;
   profiles: {
     full_name: string;
+    email?: string | null;
+    whatsapp?: string | null;
   } | null;
 }
 
@@ -51,10 +54,10 @@ function VendorProfileContent() {
       let data, error;
 
       if (isAdmin) {
-        // Admin pode ver qualquer vendor (RLS permite)
+        // Admin pode ver qualquer vendor com dados de contato (RLS permite)
         const result = await supabase
           .from('vendors')
-          .select('*, profiles(full_name)')
+          .select('*, profiles(full_name, email, whatsapp)')
           .eq('profile_id', id)
           .maybeSingle();
         data = result.data;
@@ -193,6 +196,50 @@ function VendorProfileContent() {
               Solicitar Cotação
             </Button>
           </div>
+
+          {/* Admin Contact Info */}
+          {isAdmin && vendor.profiles && (
+            <Card className="mt-8 border-coral/20 bg-coral/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg text-coral">
+                  <Phone className="h-4 w-4" />
+                  Informações de Contato (Admin)
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="flex items-center gap-2 text-sm">
+                  <span className="font-medium">Nome:</span>
+                  <span className="text-muted-foreground">{vendor.profiles.full_name}</span>
+                </p>
+                {vendor.profiles.whatsapp && (
+                  <p className="flex items-center gap-2 text-sm">
+                    <Phone className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">WhatsApp:</span>
+                    <a
+                      href={`https://wa.me/${vendor.profiles.whatsapp.replace(/\D/g, '')}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-primary hover:underline"
+                    >
+                      {vendor.profiles.whatsapp}
+                    </a>
+                  </p>
+                )}
+                {vendor.profiles.email && (
+                  <p className="flex items-center gap-2 text-sm">
+                    <Mail className="h-4 w-4 text-muted-foreground" />
+                    <span className="font-medium">Email:</span>
+                    <a
+                      href={`mailto:${vendor.profiles.email}`}
+                      className="text-primary hover:underline"
+                    >
+                      {vendor.profiles.email}
+                    </a>
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Description */}
           {vendor.description && (
