@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { CreditBalanceCard } from '@/components/vendor/CreditBalanceCard';
 import { PendingApprovalCard } from '@/components/vendor/PendingApprovalCard';
+import { VendorEditProfileModal } from '@/components/vendor/VendorEditProfileModal';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -24,6 +25,7 @@ import {
   AlertCircle,
   Crown,
   Loader2,
+  Pencil,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -81,6 +83,7 @@ function DashboardContent() {
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const fetchCredits = async (userId: string) => {
     // Fetch credit balance and transactions
@@ -100,45 +103,47 @@ function DashboardContent() {
     }
   };
 
+  const fetchData = async () => {
+    if (!user) return;
+    
+    // Fetch vendor info with all fields needed for pending state
+    const { data: vendorData } = await supabase
+      .from('vendors')
+      .select('id, subscription_status, subscription_expiry, business_name, category, custom_category, description, neighborhood, images, approval_status, is_approved, submitted_at, created_at')
+      .eq('profile_id', user.id)
+      .maybeSingle();
+
+    if (vendorData) {
+      setVendorInfo(vendorData as VendorInfo);
+    }
+
+    // Fetch quotes
+    const { data: quotesData } = await supabase
+      .from('quotes')
+      .select(`
+        *,
+        profiles!quotes_client_id_fkey(full_name, whatsapp, email),
+        leads_access(payment_status)
+      `)
+      .eq('vendor_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (quotesData) {
+      setQuotes(quotesData as Quote[]);
+    }
+
+    // Fetch credits
+    await fetchCredits(user.id);
+
+    setLoading(false);
+  };
+
   useEffect(() => {
     if (authLoading) return;
 
     if (!user || profile?.role !== 'vendor') {
       navigate('/');
       return;
-    }
-
-    async function fetchData() {
-      // Fetch vendor info with all fields needed for pending state
-      const { data: vendorData } = await supabase
-        .from('vendors')
-        .select('id, subscription_status, subscription_expiry, business_name, category, custom_category, description, neighborhood, images, approval_status, is_approved, submitted_at, created_at')
-        .eq('profile_id', user!.id)
-        .maybeSingle();
-
-      if (vendorData) {
-        setVendorInfo(vendorData as VendorInfo);
-      }
-
-      // Fetch quotes
-      const { data: quotesData } = await supabase
-        .from('quotes')
-        .select(`
-          *,
-          profiles!quotes_client_id_fkey(full_name, whatsapp, email),
-          leads_access(payment_status)
-        `)
-        .eq('vendor_id', user!.id)
-        .order('created_at', { ascending: false });
-
-      if (quotesData) {
-        setQuotes(quotesData as Quote[]);
-      }
-
-      // Fetch credits
-      await fetchCredits(user!.id);
-
-      setLoading(false);
     }
 
     fetchData();
@@ -309,33 +314,44 @@ function DashboardContent() {
                   : 'border-coral-light bg-coral-light/10'
               )}>
                 <CardContent className="flex flex-col gap-4 py-6">
-                  <div className="flex items-center gap-4">
-                    <div className={cn(
-                      'rounded-full p-3',
-                      vendorInfo?.subscription_status === 'active'
-                        ? 'bg-sage'
-                        : 'bg-coral-light'
-                    )}>
-                      <Crown className="h-6 w-6 text-primary-foreground" />
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="flex items-center gap-4">
+                      <div className={cn(
+                        'rounded-full p-3',
+                        vendorInfo?.subscription_status === 'active'
+                          ? 'bg-sage'
+                          : 'bg-coral-light'
+                      )}>
+                        <Crown className="h-6 w-6 text-primary-foreground" />
+                      </div>
+                      <div>
+                        <h2 className="font-display text-xl font-semibold">
+                          {vendorInfo?.business_name}
+                        </h2>
+                        <p className="text-sm text-muted-foreground">
+                          {vendorInfo?.subscription_status === 'active' ? (
+                            <>
+                              <CheckCircle className="mr-1 inline h-4 w-4 text-sage" />
+                              Assinatura ativa
+                            </>
+                          ) : (
+                            <>
+                              <AlertCircle className="mr-1 inline h-4 w-4 text-coral" />
+                              Assinatura inativa
+                            </>
+                          )}
+                        </p>
+                      </div>
                     </div>
-                    <div>
-                      <h2 className="font-display text-xl font-semibold">
-                        {vendorInfo?.business_name}
-                      </h2>
-                      <p className="text-sm text-muted-foreground">
-                        {vendorInfo?.subscription_status === 'active' ? (
-                          <>
-                            <CheckCircle className="mr-1 inline h-4 w-4 text-sage" />
-                            Assinatura ativa
-                          </>
-                        ) : (
-                          <>
-                            <AlertCircle className="mr-1 inline h-4 w-4 text-coral" />
-                            Assinatura inativa
-                          </>
-                        )}
-                      </p>
-                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setEditModalOpen(true)}
+                      className="shrink-0"
+                    >
+                      <Pencil className="mr-2 h-4 w-4" />
+                      Editar
+                    </Button>
                   </div>
                   {vendorInfo?.subscription_status !== 'active' && (
                     <Button
@@ -471,6 +487,24 @@ function DashboardContent() {
           </div>
         )}
         </>
+        )}
+
+        {/* Edit Profile Modal */}
+        {vendorInfo && (
+          <VendorEditProfileModal
+            open={editModalOpen}
+            onOpenChange={setEditModalOpen}
+            vendorData={{
+              id: vendorInfo.id,
+              business_name: vendorInfo.business_name,
+              category: vendorInfo.category as 'confeitaria' | 'doces' | 'salgados' | 'decoracao' | 'outros',
+              custom_category: vendorInfo.custom_category,
+              description: vendorInfo.description,
+              neighborhood: vendorInfo.neighborhood,
+              images: vendorInfo.images,
+            }}
+            onSave={fetchData}
+          />
         )}
       </main>
     </div>
