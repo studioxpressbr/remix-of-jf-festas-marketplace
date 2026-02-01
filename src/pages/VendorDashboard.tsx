@@ -9,6 +9,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { CreditBalanceCard } from '@/components/vendor/CreditBalanceCard';
 import { PendingApprovalCard } from '@/components/vendor/PendingApprovalCard';
 import { VendorEditProfileModal } from '@/components/vendor/VendorEditProfileModal';
+import { VendorContactModal } from '@/components/vendor/VendorContactModal';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -26,6 +27,7 @@ import {
   Crown,
   Loader2,
   Pencil,
+  UserCog,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -84,6 +86,7 @@ function DashboardContent() {
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [contactModalOpen, setContactModalOpen] = useState(false);
 
   const fetchCredits = async (userId: string) => {
     // Fetch credit balance and transactions
@@ -361,15 +364,24 @@ function DashboardContent() {
                         </p>
                       </div>
                     </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setEditModalOpen(true)}
-                      className="shrink-0"
-                    >
-                      <Pencil className="mr-2 h-4 w-4" />
-                      Editar
-                    </Button>
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setContactModalOpen(true)}
+                      >
+                        <UserCog className="mr-2 h-4 w-4" />
+                        Contato
+                      </Button>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setEditModalOpen(true)}
+                      >
+                        <Pencil className="mr-2 h-4 w-4" />
+                        Perfil
+                      </Button>
+                    </div>
                   </div>
                   {vendorInfo?.subscription_status !== 'active' && (
                     <Button
@@ -520,6 +532,21 @@ function DashboardContent() {
               description: vendorInfo.description,
               neighborhood: vendorInfo.neighborhood,
               images: vendorInfo.images,
+            }}
+            onSave={fetchData}
+          />
+        )}
+
+        {/* Edit Contact Modal */}
+        {profile && (
+          <VendorContactModal
+            open={contactModalOpen}
+            onOpenChange={setContactModalOpen}
+            profileData={{
+              id: profile.id,
+              full_name: profile.full_name,
+              whatsapp: profile.whatsapp,
+              email: profile.email,
             }}
             onSave={fetchData}
           />
