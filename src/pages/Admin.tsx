@@ -363,7 +363,7 @@ function AdminContent() {
                               <Button
                                 size="sm"
                                 variant="outline"
-                                onClick={() => navigate(`/vendor/${vendor.id}`)}
+                                onClick={() => navigate(`/vendor/${vendor.profile_id}`)}
                               >
                                 <Eye className="mr-1 h-3 w-3" />
                                 Ver
