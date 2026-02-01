@@ -87,6 +87,14 @@ export function Header() {
                 Minha Área
               </Link>
             )}
+            {user && profile?.role === 'client' && (
+              <Link
+                to="/minha-conta"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Minha Conta
+              </Link>
+            )}
             {!user && (
               <Link
                 to="/cadastro-fornecedor"
@@ -112,6 +120,14 @@ export function Header() {
                     <>
                       <DropdownMenuItem asChild>
                         <Link to="/dashboard">Minha Área</Link>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                    </>
+                  )}
+                  {profile?.role === 'client' && (
+                    <>
+                      <DropdownMenuItem asChild>
+                        <Link to="/minha-conta">Minha Conta</Link>
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                     </>
@@ -180,6 +196,15 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Minha Área
+                </Link>
+              )}
+              {user && profile?.role === 'client' && (
+                <Link
+                  to="/minha-conta"
+                  className="text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Minha Conta
                 </Link>
               )}
               {!user && (
