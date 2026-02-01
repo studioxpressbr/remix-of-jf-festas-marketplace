@@ -45,8 +45,9 @@ function VendorProfileContent() {
     async function fetchVendor() {
       if (!id) return;
 
+      // Use the public view which excludes sensitive fields
       const { data, error } = await supabase
-        .from('vendors')
+        .from('vendors_public' as any)
         .select('*, profiles(full_name)')
         .eq('profile_id', id)
         .maybeSingle();
@@ -56,7 +57,7 @@ function VendorProfileContent() {
         return;
       }
 
-      setVendor(data);
+      setVendor(data as unknown as VendorData);
       setLoading(false);
     }
 

@@ -25,11 +25,10 @@ export function VendorGrid({ categoryFilter }: VendorGridProps) {
     async function fetchVendors() {
       setLoading(true);
       
+      // Use the public view which excludes sensitive fields
       let query = supabase
-        .from('vendors')
+        .from('vendors_public' as any)
         .select('*')
-        .eq('subscription_status', 'active')
-        .eq('is_approved', true)
         .limit(20);
 
       if (categoryFilter) {
@@ -40,7 +39,7 @@ export function VendorGrid({ categoryFilter }: VendorGridProps) {
 
       if (!error && data) {
         // Shuffle for random order
-        const shuffled = data.sort(() => Math.random() - 0.5);
+        const shuffled = (data as unknown as Vendor[]).sort(() => Math.random() - 0.5);
         setVendors(shuffled);
       }
       setLoading(false);
