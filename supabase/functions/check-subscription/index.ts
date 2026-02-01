@@ -2,9 +2,20 @@ import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
 import Stripe from "https://esm.sh/stripe@18.5.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.57.2";
 
-const corsHeaders = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+const ALLOWED_ORIGINS = [
+  "https://jffestas.lovable.app",
+  "https://id-preview--97dc209a-b9ca-4e21-a536-66376a89d53f.lovable.app",
+];
+
+const getCorsHeaders = (origin: string | null) => {
+  const allowedOrigin = origin && ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed.replace('https://', 'https://')) || origin.includes('lovable.app'))
+    ? origin
+    : ALLOWED_ORIGINS[0];
+  
+  return {
+    "Access-Control-Allow-Origin": allowedOrigin,
+    "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+  };
 };
 
 const logStep = (step: string, details?: unknown) => {
@@ -18,6 +29,9 @@ const PRODUCTS = {
 };
 
 serve(async (req) => {
+  const origin = req.headers.get("origin");
+  const corsHeaders = getCorsHeaders(origin);
+
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -87,6 +101,8 @@ serve(async (req) => {
       });
 
       // Update vendor subscription status in database
+      // SECURITY FIX: Only update subscription fields, NOT is_approved
+      // Admin approval must remain a separate manual process
       if (productId === PRODUCTS.ANNUAL_PLAN) {
         await supabaseClient
           .from('vendors')
@@ -94,10 +110,10 @@ serve(async (req) => {
             subscription_status: 'active',
             subscription_expiry: subscriptionEnd,
             stripe_customer_id: customerId,
-            is_approved: true,
+            // Removed: is_approved: true - this must be done by admin manually
           })
           .eq('profile_id', user.id);
-        logStep("Updated vendor subscription status");
+        logStep("Updated vendor subscription status (approval unchanged)");
       }
     } else {
       logStep("No active subscription found");
@@ -114,8 +130,9 @@ serve(async (req) => {
   } catch (error) {
     const errorMessage = error instanceof Error ? error.message : String(error);
     logStep("ERROR", { message: errorMessage });
+    const origin = req.headers.get("origin");
     return new Response(JSON.stringify({ error: errorMessage }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      headers: { ...getCorsHeaders(origin), "Content-Type": "application/json" },
       status: 500,
     });
   }

@@ -536,6 +536,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      use_credit_atomic: {
+        Args: { p_quote_id: string; p_vendor_id: string }
+        Returns: Json
+      }
     }
     Enums: {
       admin_role: "admin" | "moderator" | "user"
