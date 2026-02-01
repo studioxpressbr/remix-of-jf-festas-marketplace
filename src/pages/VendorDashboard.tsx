@@ -139,14 +139,25 @@ function DashboardContent() {
   };
 
   useEffect(() => {
+    // Wait for auth to finish loading
     if (authLoading) return;
 
-    if (!user || profile?.role !== 'vendor') {
+    // If no user, redirect to home
+    if (!user) {
       navigate('/');
       return;
     }
 
-    fetchData();
+    // If profile is loaded and not a vendor, redirect
+    if (profile && profile.role !== 'vendor') {
+      navigate('/');
+      return;
+    }
+
+    // If we have a user and profile is vendor (or still loading profile), fetch data
+    if (profile?.role === 'vendor') {
+      fetchData();
+    }
   }, [user, profile, authLoading, navigate]);
 
   const handleUnlock = async (quoteId: string) => {
@@ -256,11 +267,18 @@ function DashboardContent() {
     return quote.leads_access?.some((la) => la.payment_status === 'paid');
   };
 
-  if (authLoading || loading) {
+  // Show loading state while auth or data is loading
+  if (authLoading || loading || (user && !profile)) {
     return (
       <div className="min-h-screen bg-background">
         <Header />
         <main className="container py-8">
+          <div className="mb-6 text-center">
+            <Loader2 className="mx-auto h-8 w-8 animate-spin text-muted-foreground" />
+            <p className="mt-2 text-sm text-muted-foreground">
+              Carregando sua área...
+            </p>
+          </div>
           <Skeleton className="mb-8 h-32 w-full rounded-xl" />
           <Skeleton className="mb-4 h-8 w-48" />
           <div className="space-y-4">
