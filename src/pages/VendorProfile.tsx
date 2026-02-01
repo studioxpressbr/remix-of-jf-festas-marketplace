@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
+import { useAdminRole } from '@/hooks/useAdminRole';
 import { Header } from '@/components/layout/Header';
 import { QuoteModal } from '@/components/vendor/QuoteModal';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -27,6 +28,7 @@ interface VendorData {
   description: string | null;
   neighborhood: string | null;
   images: string[];
+  is_approved?: boolean;
   profiles: {
     full_name: string;
   } | null;
@@ -36,6 +38,7 @@ function VendorProfileContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuthContext();
+  const { isAdmin, loading: adminLoading } = useAdminRole();
   const [vendor, setVendor] = useState<VendorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
@@ -43,14 +46,29 @@ function VendorProfileContent() {
 
   useEffect(() => {
     async function fetchVendor() {
-      if (!id) return;
+      if (!id || adminLoading) return;
 
-      // Use the public view which excludes sensitive fields
-      const { data, error } = await supabase
-        .from('vendors_public' as any)
-        .select('*, profiles(full_name)')
-        .eq('profile_id', id)
-        .maybeSingle();
+      let data, error;
+
+      if (isAdmin) {
+        // Admin pode ver qualquer vendor (RLS permite)
+        const result = await supabase
+          .from('vendors')
+          .select('*, profiles(full_name)')
+          .eq('profile_id', id)
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+      } else {
+        // Usuários normais só veem vendors aprovados
+        const result = await supabase
+          .from('vendors_public' as any)
+          .select('*, profiles(full_name)')
+          .eq('profile_id', id)
+          .maybeSingle();
+        data = result.data;
+        error = result.error;
+      }
 
       if (error || !data) {
         navigate('/');
@@ -62,7 +80,7 @@ function VendorProfileContent() {
     }
 
     fetchVendor();
-  }, [id, navigate]);
+  }, [id, navigate, isAdmin, adminLoading]);
 
   const handleQuoteClick = () => {
     if (!user) {
@@ -140,14 +158,21 @@ function VendorProfileContent() {
         <div className="mx-auto max-w-4xl">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <Badge
-                className={cn(
-                  'mb-3 border-0',
-                  CATEGORY_COLORS[vendor.category] || 'bg-muted text-muted-foreground'
+              <div className="flex flex-wrap gap-2 mb-3">
+                <Badge
+                  className={cn(
+                    'border-0',
+                    CATEGORY_COLORS[vendor.category] || 'bg-muted text-muted-foreground'
+                  )}
+                >
+                  {categoryInfo?.emoji} {categoryInfo?.label}
+                </Badge>
+                {isAdmin && vendor.is_approved === false && (
+                  <Badge variant="outline" className="border-coral text-coral">
+                    ⏳ Pendente de Aprovação
+                  </Badge>
                 )}
-              >
-                {categoryInfo?.emoji} {categoryInfo?.label}
-              </Badge>
+              </div>
               <h1 className="font-display text-3xl font-bold md:text-4xl">
                 {vendor.business_name}
               </h1>
