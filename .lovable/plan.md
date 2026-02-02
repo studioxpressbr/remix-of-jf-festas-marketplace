@@ -1,146 +1,165 @@
 
+# Plano: Melhorias de Edição para Admin
 
-# Plano: Permitir Admin Visualizar Fornecedores Pendentes
+## Resumo das Melhorias
 
-## Problema Identificado
-
-Quando o administrador clica no botão **"Ver"** na linha 463 do `Admin.tsx`:
-```typescript
-onClick={() => navigate(`/vendor/${vendor.profile_id}`)}
-```
-
-A página `VendorProfile.tsx` executa a seguinte consulta (linhas 49-53):
-```typescript
-const { data, error } = await supabase
-  .from('vendors_public' as any)
-  .select('*, profiles(full_name)')
-  .eq('profile_id', id)
-  .maybeSingle();
-```
-
-A view `vendors_public` só retorna fornecedores com `is_approved = true` e `subscription_status = 'active'`. Fornecedores pendentes não aparecem, resultando em redirecionamento para a home.
+1. **Admin pode editar descrição e imagens** do fornecedor diretamente na página de perfil
+2. **Nome clicável na lista de usuários** que navega para o perfil do fornecedor
 
 ---
 
-## Solução
+## Mudança 1: Botão "Editar Perfil" para Admin na VendorProfile
 
-Modificar `VendorProfile.tsx` para detectar se o usuário é admin e, se for, buscar diretamente da tabela `vendors` (que permite acesso total via RLS policy existente).
+### O que será feito
 
-### Mudanças no Arquivo
+Adicionar um botão "Editar Perfil" visível apenas para administradores na página do fornecedor (`/vendor/:id`), que abre um modal para editar descrição e imagens.
 
-**Arquivo:** `src/pages/VendorProfile.tsx`
+### Arquivos a criar
 
-1. Adicionar import do hook `useAdminRole`
-2. Verificar se é admin antes de fazer a query
-3. Se admin: buscar da tabela `vendors`
-4. Se não admin: manter comportamento atual com `vendors_public`
-5. Mostrar badge visual quando o fornecedor estiver pendente
+**Novo componente: `src/components/admin/AdminVendorEditModal.tsx`**
 
-### Código Atualizado
+Modal simplificado para o admin editar apenas:
+- Descrição
+- Imagens
 
-```typescript
-import { useAdminRole } from '@/hooks/useAdminRole';
+Diferenças do modal do fornecedor:
+- **NÃO** reseta o status de aprovação (admin já está revisando)
+- **NÃO** mostra alerta de "pendente de aprovação"
+- Título indica que é edição administrativa
 
-function VendorProfileContent() {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { user, profile } = useAuthContext();
-  const { isAdmin, loading: adminLoading } = useAdminRole();
-  // ... outros estados
+### Arquivos a modificar
 
-  useEffect(() => {
-    async function fetchVendor() {
-      if (!id || adminLoading) return;
+**`src/pages/VendorProfile.tsx`**
 
-      let data, error;
+1. Adicionar import do novo modal
+2. Adicionar estado `editModalOpen` para controlar o modal
+3. Adicionar botão "Editar Perfil" ao lado do "Aprovar Fornecedor" (visível apenas para admin)
+4. Atualizar a interface `VendorData` para incluir `custom_category`
+5. Passar dados do fornecedor para o modal
+6. Recarregar dados após salvar
 
-      if (isAdmin) {
-        // Admin pode ver qualquer vendor (RLS permite)
-        const result = await supabase
-          .from('vendors')
-          .select('*, profiles(full_name)')
-          .eq('profile_id', id)
-          .maybeSingle();
-        data = result.data;
-        error = result.error;
-      } else {
-        // Usuários normais só veem vendors aprovados
-        const result = await supabase
-          .from('vendors_public')
-          .select('*, profiles(full_name)')
-          .eq('profile_id', id)
-          .maybeSingle();
-        data = result.data;
-        error = result.error;
-      }
+---
 
-      if (error || !data) {
-        navigate('/');
-        return;
-      }
+## Mudança 2: Nome Clicável na Lista de Usuários do Admin
 
-      setVendor(data);
-      setLoading(false);
-    }
+### O que será feito
 
-    fetchVendor();
-  }, [id, navigate, isAdmin, adminLoading]);
-  
-  // ...
-}
-```
+Na tabela de usuários do painel admin, tornar o nome do usuário clicável. Se for fornecedor, navega para `/vendor/:profile_id`.
 
-### Interface Atualizada
+### Arquivo a modificar
 
-Adicionar campo `is_approved` à interface para permitir exibição condicional:
+**`src/pages/Admin.tsx`**
 
-```typescript
-interface VendorData {
-  id: string;
-  profile_id: string;
-  business_name: string;
-  category: string;
-  description: string | null;
-  neighborhood: string | null;
-  images: string[];
-  is_approved?: boolean; // Novo campo
-  profiles: {
-    full_name: string;
-  } | null;
-}
-```
+Na linha 622-624, modificar a célula do nome:
 
-### Badge Visual para Admin
-
-Quando o admin visualiza um perfil pendente, mostrar indicador:
-
+**Antes:**
 ```tsx
-{isAdmin && vendor.is_approved === false && (
-  <Badge variant="outline" className="border-coral text-coral">
-    ⏳ Pendente de Aprovação
-  </Badge>
-)}
+<TableCell className="font-medium">
+  {profile.full_name}
+</TableCell>
+```
+
+**Depois:**
+```tsx
+<TableCell className="font-medium">
+  {profile.role === 'vendor' ? (
+    <Button
+      variant="link"
+      className="h-auto p-0 text-primary"
+      onClick={() => navigate(`/vendor/${profile.id}`)}
+    >
+      {profile.full_name}
+    </Button>
+  ) : (
+    profile.full_name
+  )}
+</TableCell>
 ```
 
 ---
 
-## Por que funciona?
+## Detalhes Técnicos
 
-A tabela `vendors` tem a política RLS:
+### Estrutura do AdminVendorEditModal
+
+```typescript
+interface AdminVendorEditModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  vendorData: {
+    id: string;
+    description: string | null;
+    images: string[] | null;
+  };
+  onSave: () => void;
+}
+```
+
+### Schema de validação (admin simplificado)
+
+```typescript
+const adminEditSchema = z.object({
+  description: z
+    .string()
+    .trim()
+    .min(20, 'Descrição deve ter pelo menos 20 caracteres')
+    .max(500, 'Descrição deve ter no máximo 500 caracteres'),
+  images: z.array(z.string()).min(1, 'Adicione pelo menos 1 imagem'),
+});
+```
+
+### Lógica de salvamento (admin)
+
+O admin **NÃO** reseta o status de aprovação:
+
+```typescript
+await supabase
+  .from('vendors')
+  .update({
+    description: data.description,
+    images: data.images,
+    // NÃO altera approval_status, is_approved, submitted_at
+  })
+  .eq('id', vendorData.id);
+```
+
+### RLS já permite
+
+A política existente permite que admins atualizem vendors:
+
 ```sql
-Policy: "Admins can view all vendors"
-Command: SELECT
+Policy: "Admins can update all vendors"
+Command: UPDATE
 Using: has_admin_role(auth.uid(), 'admin')
 ```
 
-Isso garante que admins podem ver todos os fornecedores, incluindo pendentes.
+---
+
+## Fluxo do Admin
+
+```
+1. Admin acessa /admin
+2. Vê lista de fornecedores pendentes
+3. Clica em "Ver" → abre /vendor/:id
+4. Vê perfil com badge "Pendente de Aprovação"
+5. Pode clicar em "Editar Perfil" para ajustar descrição/imagens
+6. Após editar, clica em "Aprovar Fornecedor"
+```
+
+**Alternativo (via lista de usuários):**
+```
+1. Admin acessa /admin → aba "Usuários"
+2. Clica no nome de um fornecedor
+3. Navega para /vendor/:id
+4. Pode editar e aprovar
+```
 
 ---
 
-## Resultado Esperado
+## Resumo de Arquivos
 
-1. Admin clica em "Ver" no painel → vê o perfil completo do fornecedor pendente
-2. Badge "Pendente de Aprovação" aparece para indicar o status
-3. Usuários normais continuam vendo apenas fornecedores aprovados
-4. Segurança mantida via RLS existente
-
+| Arquivo | Ação |
+|---------|------|
+| `src/components/admin/AdminVendorEditModal.tsx` | **Criar** - Modal de edição para admin |
+| `src/pages/VendorProfile.tsx` | **Modificar** - Adicionar botão de edição e integrar modal |
+| `src/pages/Admin.tsx` | **Modificar** - Tornar nome do fornecedor clicável |
