@@ -620,7 +620,17 @@ function AdminContent() {
                     {filteredProfiles.map((profile) => (
                       <TableRow key={profile.id}>
                         <TableCell className="font-medium">
-                          {profile.full_name}
+                          {profile.role === 'vendor' ? (
+                            <Button
+                              variant="link"
+                              className="h-auto p-0 text-primary"
+                              onClick={() => navigate(`/vendor/${profile.id}`)}
+                            >
+                              {profile.full_name}
+                            </Button>
+                          ) : (
+                            profile.full_name
+                          )}
                         </TableCell>
                         <TableCell>{profile.email || '-'}</TableCell>
                         <TableCell>{profile.whatsapp || '-'}</TableCell>
