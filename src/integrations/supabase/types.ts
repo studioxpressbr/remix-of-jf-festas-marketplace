@@ -431,6 +431,7 @@ export type Database = {
           is_approved: boolean
           neighborhood: string | null
           profile_id: string
+          rejection_reason: string | null
           stripe_customer_id: string | null
           submitted_at: string | null
           subscription_expiry: string | null
@@ -451,6 +452,7 @@ export type Database = {
           is_approved?: boolean
           neighborhood?: string | null
           profile_id: string
+          rejection_reason?: string | null
           stripe_customer_id?: string | null
           submitted_at?: string | null
           subscription_expiry?: string | null
@@ -471,6 +473,7 @@ export type Database = {
           is_approved?: boolean
           neighborhood?: string | null
           profile_id?: string
+          rejection_reason?: string | null
           stripe_customer_id?: string | null
           submitted_at?: string | null
           subscription_expiry?: string | null

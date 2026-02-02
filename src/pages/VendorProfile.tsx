@@ -6,12 +6,13 @@ import { Header } from '@/components/layout/Header';
 import { QuoteModal } from '@/components/vendor/QuoteModal';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AdminVendorEditModal } from '@/components/admin/AdminVendorEditModal';
+import { RejectVendorModal } from '@/components/admin/RejectVendorModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { VENDOR_CATEGORIES, CATEGORY_COLORS } from '@/lib/constants';
-import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2, Pencil } from 'lucide-react';
+import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2, Pencil, XCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -32,6 +33,8 @@ interface VendorData {
   neighborhood: string | null;
   images: string[];
   is_approved?: boolean;
+  approval_status?: string;
+  rejection_reason?: string | null;
   profiles: {
     full_name: string;
     email?: string | null;
@@ -50,6 +53,7 @@ function VendorProfileContent() {
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [rejectModalOpen, setRejectModalOpen] = useState(false);
 
   const handleApproveVendor = async () => {
     if (!vendor || !user) return;
@@ -201,9 +205,14 @@ function VendorProfileContent() {
                 >
                   {categoryInfo?.emoji} {categoryInfo?.label}
                 </Badge>
-                {isAdmin && vendor.is_approved === false && (
+                {isAdmin && vendor.approval_status === 'pending' && (
                   <Badge variant="outline" className="border-coral text-coral">
                     ⏳ Pendente de Aprovação
+                  </Badge>
+                )}
+                {isAdmin && vendor.approval_status === 'rejected' && (
+                  <Badge variant="destructive">
+                    ❌ Rejeitado
                   </Badge>
                 )}
               </div>
@@ -233,20 +242,30 @@ function VendorProfileContent() {
 
               {/* Admin Approve Button */}
               {isAdmin && vendor.is_approved === false && (
-                <Button
-                  size="lg"
-                  onClick={handleApproveVendor}
-                  disabled={approving}
-                  variant="default"
-                  className="bg-primary/90 hover:bg-primary"
-                >
-                  {approving ? (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  ) : (
-                    <CheckCircle className="mr-2 h-4 w-4" />
-                  )}
-                  Aprovar Fornecedor
-                </Button>
+                <>
+                  <Button
+                    size="lg"
+                    onClick={handleApproveVendor}
+                    disabled={approving}
+                    variant="default"
+                    className="bg-primary/90 hover:bg-primary"
+                  >
+                    {approving ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                    )}
+                    Aprovar
+                  </Button>
+                  <Button
+                    size="lg"
+                    variant="destructive"
+                    onClick={() => setRejectModalOpen(true)}
+                  >
+                    <XCircle className="mr-2 h-4 w-4" />
+                    Rejeitar
+                  </Button>
+                </>
               )}
 
               <Button
@@ -304,6 +323,21 @@ function VendorProfileContent() {
             </Card>
           )}
 
+          {/* Rejection Reason Card */}
+          {isAdmin && vendor.approval_status === 'rejected' && vendor.rejection_reason && (
+            <Card className="mt-4 border-destructive/20 bg-destructive/5">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg text-destructive">
+                  <XCircle className="h-4 w-4" />
+                  Motivo da Rejeição
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground">{vendor.rejection_reason}</p>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Description */}
           {vendor.description && (
             <div className="mt-8">
@@ -337,6 +371,16 @@ function VendorProfileContent() {
             images: vendor.images,
           }}
           onSave={fetchVendor}
+        />
+      )}
+
+      {isAdmin && (
+        <RejectVendorModal
+          open={rejectModalOpen}
+          onOpenChange={setRejectModalOpen}
+          vendorProfileId={vendor.profile_id}
+          vendorName={vendor.business_name}
+          onReject={fetchVendor}
         />
       )}
     </div>
