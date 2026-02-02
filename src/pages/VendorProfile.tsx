@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { Header } from '@/components/layout/Header';
 import { QuoteModal } from '@/components/vendor/QuoteModal';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { AdminVendorEditModal } from '@/components/admin/AdminVendorEditModal';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { VENDOR_CATEGORIES, CATEGORY_COLORS } from '@/lib/constants';
-import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2 } from 'lucide-react';
+import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2, Pencil } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -48,6 +49,7 @@ function VendorProfileContent() {
   const [approving, setApproving] = useState(false);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState(false);
 
   const handleApproveVendor = async () => {
     if (!vendor || !user) return;
@@ -76,43 +78,43 @@ function VendorProfileContent() {
     }
   };
 
-  useEffect(() => {
-    async function fetchVendor() {
-      if (!id || adminLoading) return;
+  const fetchVendor = useCallback(async () => {
+    if (!id || adminLoading) return;
 
-      let data, error;
+    let data, error;
 
-      if (isAdmin) {
-        // Admin pode ver qualquer vendor com dados de contato (RLS permite)
-        const result = await supabase
-          .from('vendors')
-          .select('*, profiles(full_name, email, whatsapp)')
-          .eq('profile_id', id)
-          .maybeSingle();
-        data = result.data;
-        error = result.error;
-      } else {
-        // Usuários normais só veem vendors aprovados
-        const result = await supabase
-          .from('vendors_public' as any)
-          .select('*, profiles(full_name)')
-          .eq('profile_id', id)
-          .maybeSingle();
-        data = result.data;
-        error = result.error;
-      }
-
-      if (error || !data) {
-        navigate('/');
-        return;
-      }
-
-      setVendor(data as unknown as VendorData);
-      setLoading(false);
+    if (isAdmin) {
+      // Admin pode ver qualquer vendor com dados de contato (RLS permite)
+      const result = await supabase
+        .from('vendors')
+        .select('*, profiles(full_name, email, whatsapp)')
+        .eq('profile_id', id)
+        .maybeSingle();
+      data = result.data;
+      error = result.error;
+    } else {
+      // Usuários normais só veem vendors aprovados
+      const result = await supabase
+        .from('vendors_public' as any)
+        .select('*, profiles(full_name)')
+        .eq('profile_id', id)
+        .maybeSingle();
+      data = result.data;
+      error = result.error;
     }
 
-    fetchVendor();
+    if (error || !data) {
+      navigate('/');
+      return;
+    }
+
+    setVendor(data as unknown as VendorData);
+    setLoading(false);
   }, [id, navigate, isAdmin, adminLoading]);
+
+  useEffect(() => {
+    fetchVendor();
+  }, [fetchVendor]);
 
   const handleQuoteClick = () => {
     if (!user) {
@@ -217,6 +219,18 @@ function VendorProfileContent() {
             </div>
 
             <div className="flex flex-wrap gap-3">
+              {/* Admin Edit Button */}
+              {isAdmin && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  onClick={() => setEditModalOpen(true)}
+                >
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Editar Perfil
+                </Button>
+              )}
+
               {/* Admin Approve Button */}
               {isAdmin && vendor.is_approved === false && (
                 <Button
@@ -312,6 +326,19 @@ function VendorProfileContent() {
         onOpenChange={setAuthModalOpen}
         mode="client"
       />
+
+      {isAdmin && (
+        <AdminVendorEditModal
+          open={editModalOpen}
+          onOpenChange={setEditModalOpen}
+          vendorData={{
+            id: vendor.id,
+            description: vendor.description,
+            images: vendor.images,
+          }}
+          onSave={fetchVendor}
+        />
+      )}
     </div>
   );
 }
