@@ -12,7 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { VENDOR_CATEGORIES, CATEGORY_COLORS } from '@/lib/constants';
-import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2, Pencil, XCircle } from 'lucide-react';
+import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2, Pencil, XCircle, Power, PowerOff, Crown } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -35,6 +35,8 @@ interface VendorData {
   is_approved?: boolean;
   approval_status?: string;
   rejection_reason?: string | null;
+  subscription_status?: 'active' | 'inactive' | 'past_due';
+  subscription_expiry?: string | null;
   profiles: {
     full_name: string;
     email?: string | null;
@@ -50,6 +52,7 @@ function VendorProfileContent() {
   const [vendor, setVendor] = useState<VendorData | null>(null);
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
+  const [togglingSubscription, setTogglingSubscription] = useState(false);
   const [quoteModalOpen, setQuoteModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
@@ -72,13 +75,54 @@ function VendorProfileContent() {
 
       if (error) throw error;
 
-      setVendor({ ...vendor, is_approved: true });
+      setVendor({ ...vendor, is_approved: true, approval_status: 'approved' });
       toast.success('Fornecedor aprovado com sucesso!');
     } catch (error) {
       console.error('Error approving vendor:', error);
       toast.error('Erro ao aprovar fornecedor');
     } finally {
       setApproving(false);
+    }
+  };
+
+  const handleToggleSubscription = async (activate: boolean) => {
+    if (!vendor || !user) return;
+    
+    setTogglingSubscription(true);
+    try {
+      const updateData = activate
+        ? {
+            subscription_status: 'active' as const,
+            subscription_expiry: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(),
+          }
+        : {
+            subscription_status: 'inactive' as const,
+            subscription_expiry: null,
+          };
+
+      const { error } = await supabase
+        .from('vendors')
+        .update(updateData)
+        .eq('profile_id', vendor.profile_id);
+
+      if (error) throw error;
+
+      setVendor({
+        ...vendor,
+        subscription_status: updateData.subscription_status,
+        subscription_expiry: updateData.subscription_expiry,
+      });
+      
+      toast.success(
+        activate 
+          ? 'Assinatura ativada com sucesso!' 
+          : 'Assinatura revogada com sucesso!'
+      );
+    } catch (error) {
+      console.error('Error toggling subscription:', error);
+      toast.error('Erro ao alterar assinatura');
+    } finally {
+      setTogglingSubscription(false);
     }
   };
 
@@ -215,6 +259,23 @@ function VendorProfileContent() {
                     ❌ Rejeitado
                   </Badge>
                 )}
+                {isAdmin && vendor.subscription_status === 'active' && (
+                  <Badge className="bg-sage text-sage-foreground border-0">
+                    <Crown className="mr-1 h-3 w-3" />
+                    Assinatura Ativa
+                  </Badge>
+                )}
+                {isAdmin && vendor.subscription_status === 'inactive' && (
+                  <Badge variant="outline" className="border-muted-foreground text-muted-foreground">
+                    <PowerOff className="mr-1 h-3 w-3" />
+                    Assinatura Inativa
+                  </Badge>
+                )}
+                {isAdmin && vendor.subscription_status === 'past_due' && (
+                  <Badge variant="outline" className="border-coral text-coral">
+                    ⚠️ Pagamento Pendente
+                  </Badge>
+                )}
               </div>
               <h1 className="font-display text-3xl font-bold md:text-4xl">
                 {vendor.business_name}
@@ -237,6 +298,41 @@ function VendorProfileContent() {
                 >
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar Perfil
+                </Button>
+              )}
+
+              {/* Admin Subscription Toggle */}
+              {isAdmin && vendor.subscription_status !== 'active' && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-sage text-sage hover:bg-sage hover:text-sage-foreground"
+                  onClick={() => handleToggleSubscription(true)}
+                  disabled={togglingSubscription}
+                >
+                  {togglingSubscription ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <Power className="mr-2 h-4 w-4" />
+                  )}
+                  Ativar Assinatura
+                </Button>
+              )}
+
+              {isAdmin && vendor.subscription_status === 'active' && (
+                <Button
+                  size="lg"
+                  variant="outline"
+                  className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                  onClick={() => handleToggleSubscription(false)}
+                  disabled={togglingSubscription}
+                >
+                  {togglingSubscription ? (
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  ) : (
+                    <PowerOff className="mr-2 h-4 w-4" />
+                  )}
+                  Revogar Assinatura
                 </Button>
               )}
 
