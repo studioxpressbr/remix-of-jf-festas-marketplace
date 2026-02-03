@@ -1,3 +1,8 @@
+"scripts": {
+ "build": "remix build",
+ "start": "remix-serve build",
+ "dev": "remix dev"
+}
 {
   "name": "vite_react_shadcn_ts",
   "private": true,
