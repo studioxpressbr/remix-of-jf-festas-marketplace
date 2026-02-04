@@ -1,177 +1,325 @@
 
+# Plano: Melhorias no Painel Administrativo
 
-# Plano: Correção dos Problemas de Exibição e Filtros
+## Resumo das Funcionalidades Solicitadas
 
-## Resumo dos Problemas Identificados
+### Grupo 1: Navegacao e Filtros do Dashboard
+- Cards de estatisticas clicaveis (Fornecedores/Usuarios) que abrem listas em ordem decrescente
+- Filtro global de "Cupons Ativos" em todas as abas
 
-### Problema 1: Rodízio de 4 Fornecedores na Homepage
-- **Atual:** A homepage exibe até 20 fornecedores de uma vez
-- **Esperado:** Exibir apenas 4 fornecedores ativos em sistema de rodízio (carousel)
+### Grupo 2: Gestao de Usuarios
+- Desativar usuario (soft-delete - mantém na base como inativo)
+- Excluir usuario (hard-delete ou desativacao permanente)
 
-### Problema 2: Filtros de Busca Não Funcionam Corretamente
-- **Categorias:** O dropdown mostra "Categoria" porque a tabela `categories` está vazia. O sistema usa `VENDOR_CATEGORIES` no código mas busca da tabela vazia
-- **Bairros:** Funciona corretamente (Centro, Grama estão sendo retornados)
-- **Botão Buscar:** Não existe um botão explícito para acionar a busca
+### Grupo 3: Sistema de Creditos Bonus
+- Adicionar creditos bonus individuais (5 ou 10 creditos)
+- Adicionar creditos bonus em lote (para todos os fornecedores)
+- Validade de 10 dias para creditos bonus (expiram apos esse periodo)
+
+### Grupo 4: Sistema de Mensagens Internas
+- 5 lembretes pre-configurados editaveis pelo admin
+- Mensagens customizadas individuais ou em massa
+- Area de notificacoes no dashboard do fornecedor e cliente
 
 ---
 
-## Parte 1: Rodízio de 4 Fornecedores na Homepage
+## Viabilidade Tecnica
 
-### Modificações em `VendorGrid.tsx`
+Todas as funcionalidades sao viaveis. Segue analise detalhada:
 
-Implementar um sistema de rodízio automático que:
-1. Busca todos os fornecedores ativos
-2. Exibe apenas 4 por vez em um carousel
-3. Alterna automaticamente a cada 5 segundos
-4. Permite navegação manual com setas
+| Funcionalidade | Viavel | Complexidade |
+|----------------|--------|--------------|
+| Cards clicaveis + listas ordenadas | Sim | Baixa |
+| Filtro de cupons ativos | Sim | Baixa |
+| Desativar/Excluir usuario | Sim | Media |
+| Creditos bonus com validade | Sim | Media-Alta |
+| Sistema de mensagens | Sim | Alta |
+
+---
+
+## Grupo 1: Navegacao e Filtros (2-3 creditos)
+
+### Alteracoes em `Admin.tsx`
+
+**Cards clicaveis:**
+- Adicionar `onClick` aos cards de estatisticas
+- Ao clicar em "Fornecedores": abre aba usuarios com filtro `role=vendor`
+- Ao clicar em "Clientes": abre aba usuarios com filtro `role=client`
+- Listas ordenadas por `created_at DESC` (mais recentes primeiro)
+
+**Filtro de cupons ativos:**
+- Adicionar checkbox "Apenas com cupons ativos"
+- Buscar contagem de cupons ativos por fornecedor
+- Aplicar filtro em todas as abas
 
 ```text
-+--------------------------------------------------+
-|  ← [Card 1] [Card 2] [Card 3] [Card 4] →         |
-|     ○ ● ○ ○  (indicadores de posição)            |
-+--------------------------------------------------+
++------------------------------------------+
+|  [X] Apenas com cupons ativos            |
++------------------------------------------+
 ```
 
-### Componentes Necessários
-- Usar `embla-carousel-react` (já instalado no projeto)
-- Adicionar auto-play com intervalo de 5 segundos
-- Botões de navegação (anterior/próximo)
-- Indicadores de página (dots)
+### Arquivos Modificados
+- `src/pages/Admin.tsx`
 
 ---
 
-## Parte 2: Correção dos Filtros de Busca
+## Grupo 2: Gestao de Usuarios (3-4 creditos)
 
-### Problema: Categorias Vazias
+### Alteracoes no Banco de Dados
 
-A página `/buscar` busca categorias da tabela `categories`:
-```typescript
-const { data } = await supabase
-  .from('categories')
-  .select('*')
-  .eq('is_approved', true);
+**Nova coluna na tabela `profiles`:**
+```sql
+ALTER TABLE profiles ADD COLUMN is_active boolean DEFAULT true;
+ALTER TABLE profiles ADD COLUMN deactivated_at timestamptz;
+ALTER TABLE profiles ADD COLUMN deactivated_by uuid REFERENCES auth.users(id);
 ```
 
-Mas a tabela está vazia. As categorias estão definidas apenas em `lib/constants.ts`.
+### Alteracoes em `Admin.tsx`
 
-### Solução: Usar Constantes como Fallback
-
-Modificar `Buscar.tsx` para usar `VENDOR_CATEGORIES` quando a tabela estiver vazia:
-
-```typescript
-import { VENDOR_CATEGORIES } from '@/lib/constants';
-
-// No useEffect de categorias:
-if (data && data.length > 0) {
-  setCategories(data);
-} else {
-  // Fallback para constantes
-  setCategories(VENDOR_CATEGORIES.map(cat => ({
-    id: cat.value,
-    name: cat.label,
-    slug: cat.value,
-    emoji: cat.emoji
-  })));
-}
-```
-
-### Adicionar Botão Buscar
-
-Modificar `SearchFilters.tsx` para incluir um botão de busca explícito:
-
+**Acoes por usuario na tabela:**
 ```text
-+----------------------------------+
-|  🔍 FILTROS                      |
-+----------------------------------+
-|  📝 Buscar                       |
-|  [________________] (input)      |
-|                                  |
-|  📁 Categoria                    |
-|  [🎂 Confeitaria       ▼]        |  ← Agora com lista real
-|                                  |
-|  📍 Bairro                       |
-|  [Centro              ▼]         |  ← Já funciona
-|                                  |
-|  [     🔍 BUSCAR      ]          |  ← NOVO botão
-|                                  |
-|  [Limpar filtros]                |
-+----------------------------------+
++--------+--------+----------+--------+---------+----------+---------+-----------+
+| Nome   | E-mail | WhatsApp | Tipo   | Cadastro| Creditos | Cotacoes| Acoes     |
++--------+--------+----------+--------+---------+----------+---------+-----------+
+| Maria  | m@...  | 219...   | Fornec.| 01/02   | 5        | 3       | [⚙️ ▼]    |
++--------+--------+----------+--------+---------+----------+---------+-----------+
+                                                             |
+                                                             +-> Desativar
+                                                             +-> Excluir
+                                                             +-> Adicionar Creditos
+                                                             +-> Enviar Mensagem
 ```
 
+**Modal de confirmacao:**
+- Desativar: "Deseja desativar este usuario? Ele nao podera acessar a plataforma."
+- Excluir: "ATENCAO: Esta acao e irreversivel. Deseja excluir permanentemente?"
+
+### Impacto nas Areas do Fornecedor/Cliente
+
+- Usuarios desativados nao conseguem fazer login
+- Fornecedores desativados nao aparecem nas buscas
+- Adicionar verificacao de `is_active` no hook `useAuth`
+
+### Arquivos Modificados/Criados
+- `supabase/migrations/` - Nova migracao
+- `src/pages/Admin.tsx` - Menu de acoes
+- `src/components/admin/DeactivateUserModal.tsx` - Novo componente
+- `src/hooks/useAuth.tsx` - Verificar status ativo
+
 ---
 
-## Estrutura de Arquivos
+## Grupo 3: Sistema de Creditos Bonus (4-5 creditos)
 
-| Arquivo | Ação |
-|---------|------|
-| `src/components/home/VendorGrid.tsx` | **Modificar** - Carousel com 4 cards + auto-play |
-| `src/pages/Buscar.tsx` | **Modificar** - Fallback para VENDOR_CATEGORIES |
-| `src/components/search/SearchFilters.tsx` | **Modificar** - Adicionar botão Buscar |
+### Alteracoes no Banco de Dados
 
----
+**Nova coluna na tabela `vendor_credits`:**
+```sql
+ALTER TABLE vendor_credits ADD COLUMN expires_at timestamptz;
+```
 
-## Detalhes Técnicos
+**Nova funcao para calcular saldo disponivel (considera expiracao):**
+```sql
+CREATE FUNCTION get_vendor_available_balance(p_vendor_id uuid)
+RETURNS integer
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+  v_balance integer;
+  v_expired integer;
+BEGIN
+  -- Calcular creditos expirados que ainda nao foram descontados
+  SELECT COALESCE(SUM(amount), 0) INTO v_expired
+  FROM vendor_credits
+  WHERE vendor_id = p_vendor_id
+    AND transaction_type = 'bonus'
+    AND expires_at < now()
+    AND NOT EXISTS (
+      SELECT 1 FROM vendor_credits vc2
+      WHERE vc2.vendor_id = p_vendor_id
+        AND vc2.transaction_type = 'expiration'
+        AND vc2.description LIKE '%' || vendor_credits.id::text || '%'
+    );
 
-### VendorGrid.tsx - Implementação do Carousel
+  -- Obter saldo atual e subtrair expirados
+  SELECT COALESCE(balance_after, 0) INTO v_balance
+  FROM vendor_credits
+  WHERE vendor_id = p_vendor_id
+  ORDER BY created_at DESC
+  LIMIT 1;
+
+  RETURN GREATEST(v_balance - v_expired, 0);
+END;
+$$;
+```
+
+### Nova Edge Function: `add-bonus-credits`
 
 ```typescript
-import useEmblaCarousel from 'embla-carousel-react';
-import Autoplay from 'embla-carousel-autoplay';
+// Endpoint para admin adicionar creditos bonus
+// POST /add-bonus-credits
+// Body: { vendorId: string, amount: 5 | 10 } ou { all: true, amount: 5 | 10 }
+```
 
-// Limitar a 4 cards visíveis
-const displayedVendors = vendors.slice(0, 4);
+### Alteracoes em `Admin.tsx`
 
-// Auto-play a cada 5 segundos
-const [emblaRef] = useEmblaCarousel(
-  { loop: true, align: 'start' },
-  [Autoplay({ delay: 5000 })]
+**Modal de adicao de creditos:**
+```text
++-------------------------------------------+
+| Adicionar Creditos Bonus                  |
++-------------------------------------------+
+|                                           |
+|  Para: [Fornecedor Especifico ▼]          |
+|        ou                                 |
+|  [X] Todos os fornecedores ativos         |
+|                                           |
+|  Quantidade: [5] [10]                     |
+|                                           |
+|  ℹ️ Creditos bonus expiram em 10 dias     |
+|                                           |
+|  [Cancelar]              [Adicionar]      |
++-------------------------------------------+
+```
+
+### Impacto no Dashboard do Fornecedor
+
+- Exibir creditos com indicador de validade
+- Mostrar "X creditos expiram em Y dias" quando houver bonus
+- Atualizar `CreditBalanceCard.tsx` para mostrar bonus separadamente
+
+### Arquivos Modificados/Criados
+- `supabase/migrations/` - Novas colunas e funcoes
+- `supabase/functions/add-bonus-credits/index.ts` - Nova edge function
+- `src/pages/Admin.tsx` - Botao e modal de creditos
+- `src/components/admin/AddBonusCreditsModal.tsx` - Novo componente
+- `src/components/vendor/CreditBalanceCard.tsx` - Mostrar bonus
+
+---
+
+## Grupo 4: Sistema de Mensagens Internas (6-8 creditos)
+
+### Novas Tabelas no Banco de Dados
+
+```sql
+-- Templates de mensagens do admin
+CREATE TABLE admin_message_templates (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  title text NOT NULL,
+  content text NOT NULL,
+  shortcut text NOT NULL, -- ex: "/lembrete1"
+  created_at timestamptz DEFAULT now(),
+  updated_at timestamptz DEFAULT now()
 );
+
+-- Mensagens enviadas para usuarios
+CREATE TABLE user_messages (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  recipient_id uuid REFERENCES profiles(id) NOT NULL,
+  sender_id uuid REFERENCES auth.users(id), -- null = sistema
+  subject text NOT NULL,
+  content text NOT NULL,
+  is_read boolean DEFAULT false,
+  read_at timestamptz,
+  created_at timestamptz DEFAULT now()
+);
+
+-- Indices e RLS
+CREATE INDEX idx_user_messages_recipient ON user_messages(recipient_id);
+CREATE INDEX idx_user_messages_unread ON user_messages(recipient_id) WHERE is_read = false;
 ```
 
-### SearchFilters.tsx - Botão de Busca
+### Alteracoes em `Admin.tsx`
 
-Adicionar callback `onSearch` e botão:
-
-```typescript
-interface SearchFiltersProps {
-  // ... props existentes
-  onSearch: () => void;  // Nova prop
-}
-
-// No JSX:
-<Button 
-  onClick={onSearch}
-  className="w-full bg-gradient-orange"
->
-  <Search className="mr-2 h-4 w-4" />
-  Buscar
-</Button>
+**Gerenciador de templates (aba nova ou secao):**
+```text
++-------------------------------------------+
+| Lembretes Rapidos                         |
++-------------------------------------------+
+| /lembrete1: "Complete seu cadastro..."    | [Editar]
+| /lembrete2: "Seu plano expira em..."      | [Editar]
+| /lembrete3: "Responda as cotacoes..."     | [Editar]
+| /lembrete4: "Atualize suas fotos..."      | [Editar]
+| /lembrete5: "Aproveite o bonus..."        | [Editar]
++-------------------------------------------+
 ```
+
+**Modal de envio de mensagem:**
+```text
++-------------------------------------------+
+| Enviar Mensagem                           |
++-------------------------------------------+
+|                                           |
+|  Para: [Selecionar Usuario ▼]             |
+|        ou                                 |
+|  [X] Todos os fornecedores                |
+|  [X] Todos os clientes                    |
+|                                           |
+|  Assunto: [___________________________]   |
+|                                           |
+|  Mensagem:                                |
+|  [Usar template: /lembrete1 ▼]            |
+|  +-------------------------------------+  |
+|  |                                     |  |
+|  |                                     |  |
+|  +-------------------------------------+  |
+|                                           |
+|  [Cancelar]              [Enviar]         |
++-------------------------------------------+
+```
+
+### Impacto nos Dashboards
+
+**VendorDashboard.tsx e ClientDashboard.tsx:**
+- Adicionar icone de notificacao no header
+- Badge com contagem de mensagens nao lidas
+- Area de caixa de entrada com lista de mensagens
+
+```text
++-------------------------------------------+
+| 📬 Mensagens (2 novas)                    |
++-------------------------------------------+
+| [●] Bem-vindo ao JF Festas!       | 01/02 |
+| [●] Voce ganhou 5 creditos bonus! | 31/01 |
+| [ ] Atualize seu perfil           | 28/01 |
++-------------------------------------------+
+```
+
+### Arquivos Modificados/Criados
+- `supabase/migrations/` - Novas tabelas
+- `src/pages/Admin.tsx` - Secao de templates e modal de envio
+- `src/components/admin/MessageTemplatesSection.tsx` - Novo componente
+- `src/components/admin/SendMessageModal.tsx` - Novo componente
+- `src/components/shared/NotificationBell.tsx` - Novo componente
+- `src/components/shared/MessagesInbox.tsx` - Novo componente
+- `src/pages/VendorDashboard.tsx` - Adicionar notificacoes
+- `src/pages/ClientDashboard.tsx` - Adicionar notificacoes
 
 ---
 
-## Estimativa de Créditos
+## Estimativa de Creditos por Grupo
 
-| Tarefa | Créditos |
-|--------|----------|
-| Carousel de 4 vendors na homepage | 2-3 |
-| Fallback de categorias | 0.5 |
-| Botão Buscar nos filtros | 0.5-1 |
-| **Total** | **3-4.5 créditos** |
+| Grupo | Funcionalidade | Creditos Estimados |
+|-------|----------------|-------------------|
+| 1 | Navegacao e Filtros | 2-3 |
+| 2 | Gestao de Usuarios | 3-4 |
+| 3 | Creditos Bonus com Validade | 4-5 |
+| 4 | Sistema de Mensagens | 6-8 |
+| **Total** | **Todas as funcionalidades** | **15-20 creditos** |
 
 ---
 
-## Comportamento Esperado Após Implementação
+## Ordem de Implementacao Recomendada
 
-### Homepage
-- 4 fornecedores visíveis em carousel
-- Rotação automática a cada 5 segundos
-- Setas para navegação manual
-- Filtro por categoria ainda funciona
+1. **Grupo 1** (Navegacao e Filtros) - Base para usar o resto
+2. **Grupo 2** (Gestao de Usuarios) - Funcionalidade core de admin
+3. **Grupo 3** (Creditos Bonus) - Complementa sistema existente
+4. **Grupo 4** (Mensagens) - Funcionalidade mais complexa
 
-### Página de Busca
-- Dropdown de categorias exibe: Confeitaria, Doces, Salgados, Decoração, Outros
-- Dropdown de bairros exibe: Centro, Grama (já funciona)
-- Botão "Buscar" explícito para acionar a pesquisa
-- Busca também continua funcionando em tempo real ao digitar
+---
 
+## Consideracoes de Segurança
+
+- Todas as acoes de admin verificadas via `has_admin_role()`
+- RLS restritivo em `user_messages` (usuarios so veem proprias mensagens)
+- Logs de acoes administrativas para auditoria
+- Edge functions usam `SUPABASE_SERVICE_ROLE_KEY` para operacoes privilegiadas
