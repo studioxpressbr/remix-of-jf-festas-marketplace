@@ -42,6 +42,7 @@ interface SearchFiltersProps {
   categories: Category[];
   onClearFilters: () => void;
   hasActiveFilters: boolean;
+  onSearch?: () => void;
 }
 
 export function SearchFilters({
@@ -59,6 +60,7 @@ export function SearchFilters({
   categories,
   onClearFilters,
   hasActiveFilters,
+  onSearch,
 }: SearchFiltersProps) {
   const isMobile = useIsMobile();
   const [isOpen, setIsOpen] = useState(!isMobile);
@@ -155,6 +157,17 @@ export function SearchFilters({
           <span>5 ⭐</span>
         </div>
       </div>
+
+      {/* Search Button */}
+      {onSearch && (
+        <Button
+          onClick={onSearch}
+          className="w-full bg-primary"
+        >
+          <Search className="mr-2 h-4 w-4" />
+          Buscar
+        </Button>
+      )}
 
       {/* Clear Filters */}
       {hasActiveFilters && (

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Header } from '@/components/layout/Header';
@@ -6,6 +6,7 @@ import { VendorCard } from '@/components/home/VendorCard';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SearchFilters } from '@/components/search/SearchFilters';
 import { supabase } from '@/integrations/supabase/client';
+import { VENDOR_CATEGORIES } from '@/lib/constants';
 
 interface Vendor {
   id: string;
@@ -42,8 +43,9 @@ function SearchPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [shouldSearch, setShouldSearch] = useState(true);
 
-  // Fetch categories on mount
+  // Fetch categories on mount - with fallback to constants
   useEffect(() => {
     async function fetchCategories() {
       const { data } = await supabase
@@ -51,7 +53,18 @@ function SearchPage() {
         .select('*')
         .eq('is_approved', true)
         .order('name');
-      if (data) setCategories(data);
+      
+      if (data && data.length > 0) {
+        setCategories(data);
+      } else {
+        // Fallback to constants when table is empty
+        setCategories(VENDOR_CATEGORIES.map(cat => ({
+          id: cat.value,
+          name: cat.label,
+          slug: cat.value,
+          emoji: cat.emoji
+        })));
+      }
     }
     fetchCategories();
   }, []);
@@ -83,54 +96,72 @@ function SearchPage() {
     setSearchParams(params, { replace: true });
   }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating, setSearchParams]);
 
-  // Search vendors when filters change
-  useEffect(() => {
-    async function searchVendors() {
-      setLoading(true);
+  // Search function triggered by button or initial load
+  const searchVendors = useCallback(async () => {
+    setLoading(true);
+    
+    let query = supabase
+      .from('vendors_search' as any)
+      .select('*');
+
+    // Text search
+    if (searchTerm) {
+      const sanitizedTerm = searchTerm
+        .slice(0, 100)
+        .replace(/[%_\\[\]]/g, '')
+        .trim();
       
-      let query = supabase
-        .from('vendors_search' as any)
-        .select('*');
-
-      // Text search
-      if (searchTerm) {
-        const sanitizedTerm = searchTerm
-          .slice(0, 100)
-          .replace(/[%_\\[\]]/g, '')
-          .trim();
-        
-        if (sanitizedTerm.length > 0) {
-          query = query.or(`business_name.ilike.%${sanitizedTerm}%,description.ilike.%${sanitizedTerm}%,neighborhood.ilike.%${sanitizedTerm}%`);
-        }
+      if (sanitizedTerm.length > 0) {
+        query = query.or(`business_name.ilike.%${sanitizedTerm}%,description.ilike.%${sanitizedTerm}%,neighborhood.ilike.%${sanitizedTerm}%`);
       }
-
-      // Category filter
-      if (selectedCategory && selectedCategory !== 'all') {
-        query = query.eq('category', selectedCategory as never);
-      }
-
-      // Neighborhood filter
-      if (selectedNeighborhood && selectedNeighborhood !== 'all') {
-        query = query.eq('neighborhood', selectedNeighborhood);
-      }
-
-      // Coupons filter
-      if (hasCoupons) {
-        query = query.gt('active_coupons_count', 0);
-      }
-
-      // Rating filter
-      if (minRating > 0) {
-        query = query.gte('avg_rating', minRating);
-      }
-
-      const { data } = await query.order('created_at', { ascending: false });
-      setVendors((data as unknown as Vendor[]) || []);
-      setLoading(false);
     }
 
-    searchVendors();
+    // Category filter
+    if (selectedCategory && selectedCategory !== 'all') {
+      query = query.eq('category', selectedCategory as never);
+    }
+
+    // Neighborhood filter
+    if (selectedNeighborhood && selectedNeighborhood !== 'all') {
+      query = query.eq('neighborhood', selectedNeighborhood);
+    }
+
+    // Coupons filter
+    if (hasCoupons) {
+      query = query.gt('active_coupons_count', 0);
+    }
+
+    // Rating filter
+    if (minRating > 0) {
+      query = query.gte('avg_rating', minRating);
+    }
+
+    const { data } = await query.order('created_at', { ascending: false });
+    setVendors((data as unknown as Vendor[]) || []);
+    setLoading(false);
+    setShouldSearch(false);
   }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating]);
+
+  // Initial search on mount
+  useEffect(() => {
+    if (shouldSearch) {
+      searchVendors();
+    }
+  }, [shouldSearch, searchVendors]);
+
+  const handleSearch = () => {
+    // Update URL params
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('q', searchTerm);
+    if (selectedCategory && selectedCategory !== 'all') params.set('categoria', selectedCategory);
+    if (selectedNeighborhood && selectedNeighborhood !== 'all') params.set('bairro', selectedNeighborhood);
+    if (hasCoupons) params.set('cupons', '1');
+    if (minRating > 0) params.set('avaliacao', String(minRating));
+    setSearchParams(params, { replace: true });
+    
+    // Trigger search
+    searchVendors();
+  };
 
   const clearFilters = () => {
     setSearchTerm('');
@@ -178,6 +209,7 @@ function SearchPage() {
             categories={categories}
             onClearFilters={clearFilters}
             hasActiveFilters={hasActiveFilters}
+            onSearch={handleSearch}
           />
 
           {/* Results */}
