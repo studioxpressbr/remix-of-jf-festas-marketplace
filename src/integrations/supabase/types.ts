@@ -107,6 +107,13 @@ export type Database = {
             referencedRelation: "vendors_public"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "coupons_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors_search"
+            referencedColumns: ["id"]
+          },
         ]
       }
       leads_access: {
@@ -543,6 +550,84 @@ export type Database = {
           is_approved?: boolean | null
           neighborhood?: string | null
           profile_id?: string | null
+          subscription_status?:
+            | Database["public"]["Enums"]["subscription_status"]
+            | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "vendors_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "vendors_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      vendors_search: {
+        Row: {
+          active_coupons_count: number | null
+          approved_at: string | null
+          avg_rating: number | null
+          business_name: string | null
+          category: Database["public"]["Enums"]["vendor_category"] | null
+          category_id: string | null
+          created_at: string | null
+          custom_category: string | null
+          description: string | null
+          id: string | null
+          images: string[] | null
+          is_approved: boolean | null
+          neighborhood: string | null
+          profile_id: string | null
+          review_count: number | null
+          subscription_status:
+            | Database["public"]["Enums"]["subscription_status"]
+            | null
+        }
+        Insert: {
+          active_coupons_count?: never
+          approved_at?: string | null
+          avg_rating?: never
+          business_name?: string | null
+          category?: Database["public"]["Enums"]["vendor_category"] | null
+          category_id?: string | null
+          created_at?: string | null
+          custom_category?: string | null
+          description?: string | null
+          id?: string | null
+          images?: string[] | null
+          is_approved?: boolean | null
+          neighborhood?: string | null
+          profile_id?: string | null
+          review_count?: never
+          subscription_status?:
+            | Database["public"]["Enums"]["subscription_status"]
+            | null
+        }
+        Update: {
+          active_coupons_count?: never
+          approved_at?: string | null
+          avg_rating?: never
+          business_name?: string | null
+          category?: Database["public"]["Enums"]["vendor_category"] | null
+          category_id?: string | null
+          created_at?: string | null
+          custom_category?: string | null
+          description?: string | null
+          id?: string | null
+          images?: string[] | null
+          is_approved?: boolean | null
+          neighborhood?: string | null
+          profile_id?: string | null
+          review_count?: never
           subscription_status?:
             | Database["public"]["Enums"]["subscription_status"]
             | null
