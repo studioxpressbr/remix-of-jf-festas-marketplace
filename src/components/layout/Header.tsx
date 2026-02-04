@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
+import { NotificationBell } from '@/components/shared/NotificationBell';
 import { Menu, X, User, LogOut, Instagram, Search } from 'lucide-react';
 import {
   DropdownMenu,
@@ -107,6 +108,7 @@ export function Header() {
 
           {/* Auth Buttons / User Menu */}
           <div className="hidden items-center gap-3 md:flex">
+            {user && <NotificationBell />}
             {user ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
