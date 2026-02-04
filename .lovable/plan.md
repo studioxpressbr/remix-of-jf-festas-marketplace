@@ -1,165 +1,309 @@
 
-# Plano: Melhorias de Edição para Admin
+# Plano: Filtros Avançados de Busca de Fornecedores
 
-## Resumo das Melhorias
+## Resumo
 
-1. **Admin pode editar descrição e imagens** do fornecedor diretamente na página de perfil
-2. **Nome clicável na lista de usuários** que navega para o perfil do fornecedor
-
----
-
-## Mudança 1: Botão "Editar Perfil" para Admin na VendorProfile
-
-### O que será feito
-
-Adicionar um botão "Editar Perfil" visível apenas para administradores na página do fornecedor (`/vendor/:id`), que abre um modal para editar descrição e imagens.
-
-### Arquivos a criar
-
-**Novo componente: `src/components/admin/AdminVendorEditModal.tsx`**
-
-Modal simplificado para o admin editar apenas:
-- Descrição
-- Imagens
-
-Diferenças do modal do fornecedor:
-- **NÃO** reseta o status de aprovação (admin já está revisando)
-- **NÃO** mostra alerta de "pendente de aprovação"
-- Título indica que é edição administrativa
-
-### Arquivos a modificar
-
-**`src/pages/VendorProfile.tsx`**
-
-1. Adicionar import do novo modal
-2. Adicionar estado `editModalOpen` para controlar o modal
-3. Adicionar botão "Editar Perfil" ao lado do "Aprovar Fornecedor" (visível apenas para admin)
-4. Atualizar a interface `VendorData` para incluir `custom_category`
-5. Passar dados do fornecedor para o modal
-6. Recarregar dados após salvar
+Implementar sistema completo de filtros na página de busca (`/buscar`) que permite usuários (logados ou não) filtrar fornecedores por:
+- Categoria
+- Palavra-chave (nome, descrição)
+- Bairro
+- Cupons disponíveis
+- Classificação/Avaliação (estrelas 0-5)
 
 ---
 
-## Mudança 2: Nome Clicável na Lista de Usuários do Admin
+## Análise do Estado Atual
 
-### O que será feito
+### Dados Existentes no Banco
+- **Bairros cadastrados:** Centro, Grama
+- **Cupons:** Nenhum ativo no momento (tabela existe)
+- **Reviews:** Nenhuma avaliação cadastrada (tabela existe com campo `rating` 0-5)
+- **Categorias:** Confeitaria, Doces, Salgados, Decoração, Outros
 
-Na tabela de usuários do painel admin, tornar o nome do usuário clicável. Se for fornecedor, navega para `/vendor/:profile_id`.
+### Arquivos Principais
+- `src/pages/Buscar.tsx` - Página de busca atual
+- `src/components/home/VendorCard.tsx` - Card do fornecedor
 
-### Arquivo a modificar
+---
 
-**`src/pages/Admin.tsx`**
+## Parte 1: Atualização do Banco de Dados
 
-Na linha 622-624, modificar a célula do nome:
+### Nova View SQL com Dados Agregados
 
-**Antes:**
-```tsx
-<TableCell className="font-medium">
-  {profile.full_name}
-</TableCell>
-```
+Criar nova view `vendors_search` que inclui contagem de cupons e média de avaliação:
 
-**Depois:**
-```tsx
-<TableCell className="font-medium">
-  {profile.role === 'vendor' ? (
-    <Button
-      variant="link"
-      className="h-auto p-0 text-primary"
-      onClick={() => navigate(`/vendor/${profile.id}`)}
-    >
-      {profile.full_name}
-    </Button>
-  ) : (
-    profile.full_name
-  )}
-</TableCell>
+```sql
+CREATE OR REPLACE VIEW public.vendors_search AS
+SELECT 
+  v.id,
+  v.profile_id,
+  v.business_name,
+  v.category,
+  v.custom_category,
+  v.description,
+  v.neighborhood,
+  v.images,
+  v.created_at,
+  v.subscription_status,
+  v.is_approved,
+  v.approved_at,
+  v.category_id,
+  COALESCE(
+    (SELECT COUNT(*) FROM coupons c 
+     WHERE c.vendor_id = v.id 
+     AND c.is_active = true 
+     AND c.expires_at > NOW()
+     AND (c.max_uses IS NULL OR c.current_uses < c.max_uses)
+    ), 0
+  )::integer AS active_coupons_count,
+  COALESCE(
+    (SELECT AVG(r.rating)::numeric(2,1) FROM reviews r WHERE r.target_id = v.profile_id), 0
+  ) AS avg_rating,
+  COALESCE(
+    (SELECT COUNT(*) FROM reviews r WHERE r.target_id = v.profile_id), 0
+  )::integer AS review_count
+FROM vendors v
+WHERE v.is_approved = true 
+  AND (
+    v.subscription_status = 'active' 
+    OR v.approved_at > NOW() - INTERVAL '24 hours'
+  );
 ```
 
 ---
 
-## Detalhes Técnicos
+## Parte 2: Componente de Filtros
 
-### Estrutura do AdminVendorEditModal
+### Novo Componente: `src/components/search/SearchFilters.tsx`
+
+Painel lateral/colapsável com os filtros:
+
+```
++----------------------------------+
+|  🔍 FILTROS                      |
++----------------------------------+
+|                                  |
+|  📝 Buscar                       |
+|  [________________] (input)      |
+|                                  |
+|  📁 Categoria                    |
+|  [Selecione...        ▼]         |
+|                                  |
+|  📍 Bairro                       |
+|  [Todos os bairros    ▼]         |
+|                                  |
+|  🎟️ Cupons                       |
+|  [ ] Apenas com cupons           |
+|                                  |
+|  ⭐ Avaliação mínima             |
+|  ☆☆☆☆☆  (0 estrelas)            |
+|  [=====○-----------]  slider     |
+|                                  |
+|  [Limpar Filtros]                |
++----------------------------------+
+```
+
+**Props do componente:**
 
 ```typescript
-interface AdminVendorEditModalProps {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  vendorData: {
-    id: string;
-    description: string | null;
-    images: string[] | null;
-  };
-  onSave: () => void;
+interface SearchFiltersProps {
+  searchTerm: string;
+  setSearchTerm: (term: string) => void;
+  selectedCategory: string;
+  setSelectedCategory: (cat: string) => void;
+  selectedNeighborhood: string;
+  setSelectedNeighborhood: (n: string) => void;
+  hasCoupons: boolean;
+  setHasCoupons: (v: boolean) => void;
+  minRating: number;
+  setMinRating: (r: number) => void;
+  neighborhoods: string[];
+  categories: Category[];
+  onClearFilters: () => void;
 }
 ```
 
-### Schema de validação (admin simplificado)
+---
+
+## Parte 3: Componente de Estrelas
+
+### Novo Componente: `src/components/ui/star-rating.tsx`
+
+Componente reutilizável para exibir avaliações:
 
 ```typescript
-const adminEditSchema = z.object({
-  description: z
-    .string()
-    .trim()
-    .min(20, 'Descrição deve ter pelo menos 20 caracteres')
-    .max(500, 'Descrição deve ter no máximo 500 caracteres'),
-  images: z.array(z.string()).min(1, 'Adicione pelo menos 1 imagem'),
-});
+interface StarRatingProps {
+  rating: number;      // 0-5
+  showValue?: boolean; // Mostrar "4.5" ao lado
+  size?: 'sm' | 'md' | 'lg';
+}
 ```
 
-### Lógica de salvamento (admin)
+Visual: ★★★★☆ (4.2)
 
-O admin **NÃO** reseta o status de aprovação:
+---
 
+## Parte 4: Atualização da Página de Busca
+
+### Modificações em `src/pages/Buscar.tsx`
+
+1. **Novos estados:**
 ```typescript
-await supabase
-  .from('vendors')
-  .update({
-    description: data.description,
-    images: data.images,
-    // NÃO altera approval_status, is_approved, submitted_at
-  })
-  .eq('id', vendorData.id);
+const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
+const [hasCoupons, setHasCoupons] = useState(false);
+const [minRating, setMinRating] = useState(0);
+const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
 ```
 
-### RLS já permite
+2. **Buscar bairros únicos:**
+```typescript
+useEffect(() => {
+  async function fetchNeighborhoods() {
+    const { data } = await supabase
+      .from('vendors_search')
+      .select('neighborhood')
+      .not('neighborhood', 'is', null);
+    
+    const unique = [...new Set(data?.map(v => v.neighborhood))];
+    setNeighborhoods(unique.filter(Boolean));
+  }
+  fetchNeighborhoods();
+}, []);
+```
 
-A política existente permite que admins atualizem vendors:
+3. **Query com todos os filtros:**
+```typescript
+let query = supabase
+  .from('vendors_search')
+  .select('*');
 
-```sql
-Policy: "Admins can update all vendors"
-Command: UPDATE
-Using: has_admin_role(auth.uid(), 'admin')
+// Palavra-chave
+if (searchTerm) {
+  query = query.or(`business_name.ilike.%${term}%,description.ilike.%${term}%`);
+}
+
+// Categoria
+if (selectedCategory) {
+  query = query.eq('category', selectedCategory);
+}
+
+// Bairro
+if (selectedNeighborhood) {
+  query = query.eq('neighborhood', selectedNeighborhood);
+}
+
+// Cupons
+if (hasCoupons) {
+  query = query.gt('active_coupons_count', 0);
+}
+
+// Avaliação mínima
+if (minRating > 0) {
+  query = query.gte('avg_rating', minRating);
+}
+```
+
+4. **Layout responsivo:**
+```
+Desktop: Filtros à esquerda | Resultados à direita
+Mobile: Filtros em drawer colapsável no topo
 ```
 
 ---
 
-## Fluxo do Admin
+## Parte 5: Atualização do VendorCard
+
+### Modificações em `src/components/home/VendorCard.tsx`
+
+1. **Adicionar novos campos à interface:**
+```typescript
+interface Vendor {
+  // ... campos existentes
+  active_coupons_count?: number;
+  avg_rating?: number;
+  review_count?: number;
+}
+```
+
+2. **Exibir badges no card:**
+- Badge de cupom: 🎟️ quando `active_coupons_count > 0`
+- Estrelas: ★4.5 (12) quando houver avaliações
+
+---
+
+## Parte 6: URL Params
+
+Todos os filtros serão sincronizados com a URL para compartilhamento:
 
 ```
-1. Admin acessa /admin
-2. Vê lista de fornecedores pendentes
-3. Clica em "Ver" → abre /vendor/:id
-4. Vê perfil com badge "Pendente de Aprovação"
-5. Pode clicar em "Editar Perfil" para ajustar descrição/imagens
-6. Após editar, clica em "Aprovar Fornecedor"
-```
-
-**Alternativo (via lista de usuários):**
-```
-1. Admin acessa /admin → aba "Usuários"
-2. Clica no nome de um fornecedor
-3. Navega para /vendor/:id
-4. Pode editar e aprovar
+/buscar?q=bolo&categoria=confeitaria&bairro=Centro&cupons=1&avaliacao=4
 ```
 
 ---
 
-## Resumo de Arquivos
+## Estrutura de Arquivos
 
 | Arquivo | Ação |
 |---------|------|
-| `src/components/admin/AdminVendorEditModal.tsx` | **Criar** - Modal de edição para admin |
-| `src/pages/VendorProfile.tsx` | **Modificar** - Adicionar botão de edição e integrar modal |
-| `src/pages/Admin.tsx` | **Modificar** - Tornar nome do fornecedor clicável |
+| `supabase/migrations/xxx.sql` | **Criar** - View `vendors_search` |
+| `src/components/search/SearchFilters.tsx` | **Criar** - Painel de filtros |
+| `src/components/ui/star-rating.tsx` | **Criar** - Componente de estrelas |
+| `src/pages/Buscar.tsx` | **Modificar** - Integrar filtros |
+| `src/components/home/VendorCard.tsx` | **Modificar** - Exibir rating e cupons |
+| `src/integrations/supabase/types.ts` | **Atualizado automaticamente** |
+
+---
+
+## Fluxo Visual (Desktop)
+
+```
++------------------+----------------------------------------+
+| FILTROS          | RESULTADOS                             |
+|                  |                                        |
+| 🔍 Buscar        | 3 fornecedores encontrados             |
+| [bolo________]   |                                        |
+|                  | +--------+  +--------+  +--------+     |
+| 📁 Categoria     | | 🎂     |  | 🍰     |  | 🧁     |     |
+| [Confeitaria ▼]  | | Maria  |  | João   |  | Ana    |     |
+|                  | | ★★★★☆  |  | ★★★★★  |  | ★★★☆☆  |     |
+| 📍 Bairro        | | 🎟️     |  |        |  | 🎟️     |     |
+| [Centro      ▼]  | +--------+  +--------+  +--------+     |
+|                  |                                        |
+| 🎟️ Cupons        |                                        |
+| [✓] Com cupom    |                                        |
+|                  |                                        |
+| ⭐ Avaliação     |                                        |
+| [====○-----]     |                                        |
+| Mínimo: 3 ⭐     |                                        |
+|                  |                                        |
+| [Limpar filtros] |                                        |
++------------------+----------------------------------------+
+```
+
+---
+
+## Estimativa de Créditos
+
+| Etapa | Créditos |
+|-------|----------|
+| Migration SQL (view) | ~1-2 |
+| SearchFilters.tsx | ~2-3 |
+| StarRating.tsx | ~1 |
+| Buscar.tsx (modificações) | ~2-3 |
+| VendorCard.tsx (modificações) | ~1-2 |
+| Testes e ajustes | ~1-2 |
+| **Total estimado** | **8-13 créditos** |
+
+---
+
+## Considerações Técnicas
+
+1. **Performance:** A view `vendors_search` usa subqueries que são executadas por linha. Para grande volume de dados, considerar materialização ou colunas calculadas.
+
+2. **RLS:** A view herda a visibilidade da tabela `vendors` - não expõe dados sensíveis.
+
+3. **Cupons futuros:** O filtro já está preparado para quando cupons forem cadastrados.
+
+4. **Reviews futuras:** O filtro de avaliação mostrará "sem avaliações" quando `review_count = 0`.
+
+5. **Mobile-first:** O painel de filtros será colapsável em telas pequenas.
