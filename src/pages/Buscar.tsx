@@ -126,9 +126,9 @@ function SearchPage() {
       query = query.eq('neighborhood', selectedNeighborhood);
     }
 
-    // Coupons filter
+    // Coupons filter - use gte(1) to handle nulls properly
     if (hasCoupons) {
-      query = query.gt('active_coupons_count', 0);
+      query = query.not('active_coupons_count', 'is', null).gte('active_coupons_count', 1);
     }
 
     // Rating filter
