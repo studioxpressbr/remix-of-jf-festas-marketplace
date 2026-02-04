@@ -119,6 +119,9 @@ export type Database = {
       leads_access: {
         Row: {
           created_at: string
+          deal_closed: boolean
+          deal_closed_at: string | null
+          deal_value: number | null
           id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           quote_id: string
@@ -127,6 +130,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deal_closed?: boolean
+          deal_closed_at?: string | null
+          deal_value?: number | null
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           quote_id: string
@@ -135,6 +141,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deal_closed?: boolean
+          deal_closed_at?: string | null
+          deal_value?: number | null
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           quote_id?: string
