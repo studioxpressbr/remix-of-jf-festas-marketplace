@@ -1,7 +1,11 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { VendorCard } from './VendorCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Button } from '@/components/ui/button';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import useEmblaCarousel from 'embla-carousel-react';
+import Autoplay from 'embla-carousel-autoplay';
 
 interface Vendor {
   id: string;
@@ -20,6 +24,19 @@ interface VendorGridProps {
 export function VendorGrid({ categoryFilter }: VendorGridProps) {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  const [emblaRef, emblaApi] = useEmblaCarousel(
+    { loop: true, align: 'start', slidesToScroll: 1 },
+    [Autoplay({ delay: 5000, stopOnInteraction: false })]
+  );
+
+  const scrollPrev = useCallback(() => {
+    if (emblaApi) emblaApi.scrollPrev();
+  }, [emblaApi]);
+
+  const scrollNext = useCallback(() => {
+    if (emblaApi) emblaApi.scrollNext();
+  }, [emblaApi]);
 
   useEffect(() => {
     async function fetchVendors() {
@@ -51,11 +68,11 @@ export function VendorGrid({ categoryFilter }: VendorGridProps) {
   if (loading) {
     return (
       <div className="container pb-16">
-        <div className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3 xl:columns-4">
-          {Array.from({ length: 8 }).map((_, i) => (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
             <Skeleton 
               key={i} 
-              className={`w-full rounded-xl ${['h-64', 'h-72', 'h-80'][i % 3]}`}
+              className="h-72 w-full rounded-xl"
             />
           ))}
         </div>
@@ -79,14 +96,66 @@ export function VendorGrid({ categoryFilter }: VendorGridProps) {
     );
   }
 
+  // Limit to 4 vendors for carousel display
+  const displayedVendors = vendors.slice(0, 4);
+
   return (
     <div className="container pb-16">
-      <div className="columns-1 gap-4 space-y-4 sm:columns-2 lg:columns-3 xl:columns-4">
-        {vendors.map((vendor, index) => (
-          <div key={vendor.id} className="break-inside-avoid">
-            <VendorCard vendor={vendor} index={index} />
+      <div className="relative">
+        {/* Navigation Buttons */}
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute -left-4 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-background shadow-md lg:flex"
+          onClick={scrollPrev}
+        >
+          <ChevronLeft className="h-4 w-4" />
+          <span className="sr-only">Anterior</span>
+        </Button>
+        
+        <Button
+          variant="outline"
+          size="icon"
+          className="absolute -right-4 top-1/2 z-10 hidden -translate-y-1/2 rounded-full bg-background shadow-md lg:flex"
+          onClick={scrollNext}
+        >
+          <ChevronRight className="h-4 w-4" />
+          <span className="sr-only">Próximo</span>
+        </Button>
+
+        {/* Carousel */}
+        <div className="overflow-hidden" ref={emblaRef}>
+          <div className="flex gap-4">
+            {displayedVendors.map((vendor, index) => (
+              <div 
+                key={vendor.id} 
+                className="min-w-0 flex-shrink-0 flex-grow-0 basis-full sm:basis-1/2 lg:basis-1/4"
+              >
+                <VendorCard vendor={vendor} index={index} />
+              </div>
+            ))}
           </div>
-        ))}
+        </div>
+
+        {/* Mobile Navigation */}
+        <div className="mt-4 flex justify-center gap-2 lg:hidden">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full"
+            onClick={scrollPrev}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-full"
+            onClick={scrollNext}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </div>
       </div>
     </div>
   );
