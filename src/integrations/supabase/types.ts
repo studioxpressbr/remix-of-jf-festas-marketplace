@@ -14,6 +14,33 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_message_templates: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          shortcut: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          shortcut: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          shortcut?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       categories: {
         Row: {
           created_at: string
@@ -208,25 +235,34 @@ export type Database = {
       profiles: {
         Row: {
           created_at: string
+          deactivated_at: string | null
+          deactivated_by: string | null
           email: string | null
           full_name: string
           id: string
+          is_active: boolean | null
           role: Database["public"]["Enums"]["app_role"]
           whatsapp: string | null
         }
         Insert: {
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           email?: string | null
           full_name: string
           id: string
+          is_active?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           whatsapp?: string | null
         }
         Update: {
           created_at?: string
+          deactivated_at?: string | null
+          deactivated_by?: string | null
           email?: string | null
           full_name?: string
           id?: string
+          is_active?: boolean | null
           role?: Database["public"]["Enums"]["app_role"]
           whatsapp?: string | null
         }
@@ -359,6 +395,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_messages: {
+        Row: {
+          content: string
+          created_at: string | null
+          id: string
+          is_read: boolean | null
+          read_at: string | null
+          recipient_id: string
+          sender_id: string | null
+          subject: string
+        }
+        Insert: {
+          content: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          read_at?: string | null
+          recipient_id: string
+          sender_id?: string | null
+          subject: string
+        }
+        Update: {
+          content?: string
+          created_at?: string | null
+          id?: string
+          is_read?: boolean | null
+          read_at?: string | null
+          recipient_id?: string
+          sender_id?: string | null
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_messages_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -386,6 +463,7 @@ export type Database = {
           balance_after: number
           created_at: string
           description: string | null
+          expires_at: string | null
           id: string
           quote_id: string | null
           stripe_session_id: string | null
@@ -397,6 +475,7 @@ export type Database = {
           balance_after: number
           created_at?: string
           description?: string | null
+          expires_at?: string | null
           id?: string
           quote_id?: string | null
           stripe_session_id?: string | null
@@ -408,6 +487,7 @@ export type Database = {
           balance_after?: number
           created_at?: string
           description?: string | null
+          expires_at?: string | null
           id?: string
           quote_id?: string | null
           stripe_session_id?: string | null
@@ -660,6 +740,18 @@ export type Database = {
       }
     }
     Functions: {
+      get_expiring_bonus_credits: {
+        Args: { p_vendor_id: string }
+        Returns: {
+          amount: number
+          days_remaining: number
+          expires_at: string
+        }[]
+      }
+      get_vendor_available_balance: {
+        Args: { p_vendor_id: string }
+        Returns: number
+      }
       get_vendor_balance: { Args: { p_vendor_id: string }; Returns: number }
       has_admin_role: {
         Args: {

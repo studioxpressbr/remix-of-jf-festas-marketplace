@@ -11,6 +11,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Checkbox } from '@/components/ui/checkbox';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import {
   Table,
   TableBody,
@@ -19,6 +27,10 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import { DeactivateUserModal } from '@/components/admin/DeactivateUserModal';
+import { AddBonusCreditsModal } from '@/components/admin/AddBonusCreditsModal';
+import { SendMessageModal } from '@/components/admin/SendMessageModal';
+import { MessageTemplatesSection } from '@/components/admin/MessageTemplatesSection';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -39,6 +51,12 @@ import {
   X,
   FileText,
   Coins,
+  MoreHorizontal,
+  UserX,
+  Trash2,
+  Gift,
+  Send,
+  Tag,
 } from 'lucide-react';
 
 interface PendingVendor {
@@ -64,9 +82,11 @@ interface ProfileWithStats {
   whatsapp: string | null;
   role: 'vendor' | 'client';
   created_at: string;
+  is_active: boolean;
   credits: number;
   quotes_requested: number;
   quotes_received: number;
+  active_coupons: number;
 }
 
 function AdminContent() {
@@ -85,6 +105,21 @@ function AdminContent() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [minQuotes, setMinQuotes] = useState<number | ''>('');
+  const [onlyWithCoupons, setOnlyWithCoupons] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<'all' | 'vendor' | 'client'>('all');
+  const [activeTab, setActiveTab] = useState('pending');
+
+  // Modal states
+  const [deactivateModal, setDeactivateModal] = useState<{
+    user: ProfileWithStats;
+    mode: 'deactivate' | 'delete';
+  } | null>(null);
+  const [bonusModal, setBonusModal] = useState<{
+    vendor: { id: string; full_name: string } | null;
+  } | null>(null);
+  const [messageModal, setMessageModal] = useState<{
+    user: { id: string; full_name: string; role: 'vendor' | 'client' } | null;
+  } | null>(null);
 
   useEffect(() => {
     if (authLoading || adminLoading) return;
@@ -133,6 +168,8 @@ function AdminContent() {
         profilesData.map(async (profile) => {
           // Get credits (for vendors)
           let credits = 0;
+          let activeCoupons = 0;
+          
           if (profile.role === 'vendor') {
             const { data: creditData } = await supabase
               .from('vendor_credits')
@@ -141,6 +178,23 @@ function AdminContent() {
               .order('created_at', { ascending: false })
               .limit(1);
             credits = creditData?.[0]?.balance_after || 0;
+
+            // Get vendor id to count coupons
+            const { data: vendorData } = await supabase
+              .from('vendors')
+              .select('id')
+              .eq('profile_id', profile.id)
+              .maybeSingle();
+
+            if (vendorData) {
+              const { count } = await supabase
+                .from('coupons')
+                .select('*', { count: 'exact', head: true })
+                .eq('vendor_id', vendorData.id)
+                .eq('is_active', true)
+                .gt('expires_at', new Date().toISOString());
+              activeCoupons = count || 0;
+            }
           }
 
           // Get quotes requested (as client)
@@ -157,9 +211,11 @@ function AdminContent() {
 
           return {
             ...profile,
+            is_active: profile.is_active ?? true,
             credits,
             quotes_requested: quotesRequested || 0,
             quotes_received: quotesReceived || 0,
+            active_coupons: activeCoupons,
           } as ProfileWithStats;
         })
       );
@@ -170,9 +226,20 @@ function AdminContent() {
     setLoading(false);
   }
 
+  // Clickable stats card handler
+  const handleStatsClick = (type: 'vendor' | 'client') => {
+    setRoleFilter(type);
+    setActiveTab('users');
+  };
+
   // Filtered profiles
   const filteredProfiles = useMemo(() => {
     return allProfiles.filter((profile) => {
+      // Role filter
+      if (roleFilter !== 'all' && profile.role !== roleFilter) {
+        return false;
+      }
+
       // Email filter
       if (emailFilter && !profile.email?.toLowerCase().includes(emailFilter.toLowerCase())) {
         return false;
@@ -200,18 +267,27 @@ function AdminContent() {
         }
       }
 
+      // Only with coupons filter (only applies to vendors)
+      if (onlyWithCoupons) {
+        if (profile.role !== 'vendor' || profile.active_coupons === 0) {
+          return false;
+        }
+      }
+
       return true;
     });
-  }, [allProfiles, emailFilter, dateFrom, dateTo, minQuotes]);
+  }, [allProfiles, emailFilter, dateFrom, dateTo, minQuotes, onlyWithCoupons, roleFilter]);
 
   const clearFilters = () => {
     setEmailFilter('');
     setDateFrom(undefined);
     setDateTo(undefined);
     setMinQuotes('');
+    setOnlyWithCoupons(false);
+    setRoleFilter('all');
   };
 
-  const hasActiveFilters = emailFilter || dateFrom || dateTo || minQuotes !== '';
+  const hasActiveFilters = emailFilter || dateFrom || dateTo || minQuotes !== '' || onlyWithCoupons || roleFilter !== 'all';
 
   async function handleApprove(vendorId: string) {
     setProcessing(vendorId);
@@ -279,6 +355,34 @@ function AdminContent() {
     }
   }
 
+  async function handleReactivate(profileId: string) {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_active: true,
+          deactivated_at: null,
+          deactivated_by: null,
+        })
+        .eq('id', profileId);
+
+      if (error) throw error;
+
+      toast({
+        title: 'Usuário reativado!',
+        description: 'O usuário pode acessar a plataforma novamente.',
+      });
+
+      fetchData();
+    } catch (error: unknown) {
+      toast({
+        title: 'Erro',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive',
+      });
+    }
+  }
+
   if (authLoading || adminLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
@@ -335,7 +439,7 @@ function AdminContent() {
           </div>
         </div>
 
-        {/* Stats */}
+        {/* Stats - Clickable */}
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
           <Card className="bg-gradient-card">
             <CardContent className="flex items-center gap-4 py-4">
@@ -348,7 +452,10 @@ function AdminContent() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-card">
+          <Card
+            className="cursor-pointer bg-gradient-card transition-shadow hover:shadow-md"
+            onClick={() => handleStatsClick('vendor')}
+          >
             <CardContent className="flex items-center gap-4 py-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-sage-light">
                 <Store className="h-5 w-5 text-sage" />
@@ -359,7 +466,10 @@ function AdminContent() {
               </div>
             </CardContent>
           </Card>
-          <Card className="bg-gradient-card">
+          <Card
+            className="cursor-pointer bg-gradient-card transition-shadow hover:shadow-md"
+            onClick={() => handleStatsClick('client')}
+          >
             <CardContent className="flex items-center gap-4 py-4">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-champagne">
                 <Users className="h-5 w-5 text-secondary-foreground" />
@@ -373,7 +483,7 @@ function AdminContent() {
         </div>
 
         {/* Tabs */}
-        <Tabs defaultValue="pending" className="space-y-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
           <TabsList>
             <TabsTrigger value="pending" className="gap-2">
               <Clock className="h-4 w-4" />
@@ -387,6 +497,10 @@ function AdminContent() {
             <TabsTrigger value="users" className="gap-2">
               <Users className="h-4 w-4" />
               Usuários
+            </TabsTrigger>
+            <TabsTrigger value="messages" className="gap-2">
+              <Send className="h-4 w-4" />
+              Mensagens
             </TabsTrigger>
           </TabsList>
 
@@ -496,11 +610,31 @@ function AdminContent() {
 
           <TabsContent value="users">
             <Card className="bg-gradient-card">
-              <CardHeader>
-                <CardTitle>Todos os Usuários</CardTitle>
-                <CardDescription>
-                  Lista de todos os usuários cadastrados na plataforma
-                </CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <div>
+                  <CardTitle>Todos os Usuários</CardTitle>
+                  <CardDescription>
+                    Lista de todos os usuários cadastrados na plataforma
+                  </CardDescription>
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setBonusModal({ vendor: null })}
+                  >
+                    <Gift className="mr-2 h-4 w-4" />
+                    Bônus em Lote
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setMessageModal({ user: null })}
+                  >
+                    <Send className="mr-2 h-4 w-4" />
+                    Mensagem em Lote
+                  </Button>
+                </div>
               </CardHeader>
               <CardContent className="space-y-4">
                 {/* Filters */}
@@ -575,6 +709,30 @@ function AdminContent() {
                     />
                   </div>
 
+                  <div className="flex items-center space-x-2">
+                    <Checkbox
+                      id="coupons-filter"
+                      checked={onlyWithCoupons}
+                      onCheckedChange={(checked) => setOnlyWithCoupons(checked === true)}
+                    />
+                    <label
+                      htmlFor="coupons-filter"
+                      className="flex items-center gap-1 text-sm font-medium leading-none"
+                    >
+                      <Tag className="h-3.5 w-3.5" />
+                      Apenas com cupons
+                    </label>
+                  </div>
+
+                  {roleFilter !== 'all' && (
+                    <Badge variant="secondary" className="gap-1">
+                      {roleFilter === 'vendor' ? 'Fornecedores' : 'Clientes'}
+                      <button onClick={() => setRoleFilter('all')}>
+                        <X className="h-3 w-3" />
+                      </button>
+                    </Badge>
+                  )}
+
                   {hasActiveFilters && (
                     <Button
                       variant="ghost"
@@ -614,42 +772,58 @@ function AdminContent() {
                           Cotações
                         </div>
                       </TableHead>
+                      <TableHead className="text-right">Ações</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
                     {filteredProfiles.map((profile) => (
-                      <TableRow key={profile.id}>
+                      <TableRow key={profile.id} className={cn(!profile.is_active && 'opacity-50')}>
                         <TableCell className="font-medium">
-                          {profile.role === 'vendor' ? (
-                            <Button
-                              variant="link"
-                              className="h-auto p-0 text-primary"
-                              onClick={() => navigate(`/vendor/${profile.id}`)}
-                            >
-                              {profile.full_name}
-                            </Button>
-                          ) : (
-                            profile.full_name
-                          )}
+                          <div className="flex items-center gap-2">
+                            {profile.role === 'vendor' ? (
+                              <Button
+                                variant="link"
+                                className="h-auto p-0 text-primary"
+                                onClick={() => navigate(`/vendor/${profile.id}`)}
+                              >
+                                {profile.full_name}
+                              </Button>
+                            ) : (
+                              profile.full_name
+                            )}
+                            {!profile.is_active && (
+                              <Badge variant="outline" className="text-destructive">
+                                Inativo
+                              </Badge>
+                            )}
+                          </div>
                         </TableCell>
                         <TableCell>{profile.email || '-'}</TableCell>
                         <TableCell>{profile.whatsapp || '-'}</TableCell>
                         <TableCell>
-                          <Badge
-                            variant={profile.role === 'vendor' ? 'default' : 'secondary'}
-                          >
-                            {profile.role === 'vendor' ? (
-                              <>
-                                <Store className="mr-1 h-3 w-3" />
-                                Fornecedor
-                              </>
-                            ) : (
-                              <>
-                                <UserCheck className="mr-1 h-3 w-3" />
-                                Cliente
-                              </>
+                          <div className="flex items-center gap-1">
+                            <Badge
+                              variant={profile.role === 'vendor' ? 'default' : 'secondary'}
+                            >
+                              {profile.role === 'vendor' ? (
+                                <>
+                                  <Store className="mr-1 h-3 w-3" />
+                                  Fornecedor
+                                </>
+                              ) : (
+                                <>
+                                  <UserCheck className="mr-1 h-3 w-3" />
+                                  Cliente
+                                </>
+                              )}
+                            </Badge>
+                            {profile.role === 'vendor' && profile.active_coupons > 0 && (
+                              <Badge variant="outline" className="gap-1">
+                                <Tag className="h-3 w-3" />
+                                {profile.active_coupons}
+                              </Badge>
                             )}
-                          </Badge>
+                          </div>
                         </TableCell>
                         <TableCell>
                           {format(new Date(profile.created_at), "dd/MM/yyyy", { locale: ptBR })}
@@ -681,6 +855,91 @@ function AdminContent() {
                             )}
                           </div>
                         </TableCell>
+                        <TableCell className="text-right">
+                          <DropdownMenu>
+                            <DropdownMenuTrigger asChild>
+                              <Button variant="ghost" size="icon">
+                                <MoreHorizontal className="h-4 w-4" />
+                              </Button>
+                            </DropdownMenuTrigger>
+                            <DropdownMenuContent align="end">
+                              {profile.role === 'vendor' && (
+                                <>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      navigate(`/vendor/${profile.id}`)
+                                    }
+                                  >
+                                    <Eye className="mr-2 h-4 w-4" />
+                                    Ver Perfil
+                                  </DropdownMenuItem>
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setBonusModal({
+                                        vendor: {
+                                          id: profile.id,
+                                          full_name: profile.full_name,
+                                        },
+                                      })
+                                    }
+                                  >
+                                    <Gift className="mr-2 h-4 w-4" />
+                                    Adicionar Créditos
+                                  </DropdownMenuItem>
+                                </>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setMessageModal({
+                                    user: {
+                                      id: profile.id,
+                                      full_name: profile.full_name,
+                                      role: profile.role,
+                                    },
+                                  })
+                                }
+                              >
+                                <Send className="mr-2 h-4 w-4" />
+                                Enviar Mensagem
+                              </DropdownMenuItem>
+                              <DropdownMenuSeparator />
+                              {profile.is_active ? (
+                                <DropdownMenuItem
+                                  onClick={() =>
+                                    setDeactivateModal({
+                                      user: profile,
+                                      mode: 'deactivate',
+                                    })
+                                  }
+                                  className="text-destructive"
+                                >
+                                  <UserX className="mr-2 h-4 w-4" />
+                                  Desativar
+                                </DropdownMenuItem>
+                              ) : (
+                                <DropdownMenuItem
+                                  onClick={() => handleReactivate(profile.id)}
+                                  className="text-sage"
+                                >
+                                  <UserCheck className="mr-2 h-4 w-4" />
+                                  Reativar
+                                </DropdownMenuItem>
+                              )}
+                              <DropdownMenuItem
+                                onClick={() =>
+                                  setDeactivateModal({
+                                    user: profile,
+                                    mode: 'delete',
+                                  })
+                                }
+                                className="text-destructive"
+                              >
+                                <Trash2 className="mr-2 h-4 w-4" />
+                                Excluir
+                              </DropdownMenuItem>
+                            </DropdownMenuContent>
+                          </DropdownMenu>
+                        </TableCell>
                       </TableRow>
                     ))}
                   </TableBody>
@@ -688,8 +947,41 @@ function AdminContent() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          <TabsContent value="messages">
+            <MessageTemplatesSection />
+          </TabsContent>
         </Tabs>
       </main>
+
+      {/* Modals */}
+      {deactivateModal && (
+        <DeactivateUserModal
+          open={!!deactivateModal}
+          onOpenChange={() => setDeactivateModal(null)}
+          user={deactivateModal.user}
+          mode={deactivateModal.mode}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {bonusModal && (
+        <AddBonusCreditsModal
+          open={!!bonusModal}
+          onOpenChange={() => setBonusModal(null)}
+          targetVendor={bonusModal.vendor}
+          onSuccess={fetchData}
+        />
+      )}
+
+      {messageModal && (
+        <SendMessageModal
+          open={!!messageModal}
+          onOpenChange={() => setMessageModal(null)}
+          targetUser={messageModal.user}
+          onSuccess={() => {}}
+        />
+      )}
     </div>
   );
 }

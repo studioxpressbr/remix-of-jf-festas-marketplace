@@ -1,13 +1,12 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Coins, Plus, Minus, ArrowUpRight, Gift, RefreshCw, History } from 'lucide-react';
+import { Coins, Plus, ArrowUpRight, Gift, RefreshCw, History, Clock } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { LEAD_PRICE } from '@/lib/constants';
 
@@ -18,6 +17,13 @@ interface CreditTransaction {
   transaction_type: string;
   description: string | null;
   created_at: string;
+  expires_at?: string | null;
+}
+
+interface ExpiringBonus {
+  amount: number;
+  expires_at: string;
+  days_remaining: number;
 }
 
 interface CreditBalanceCardProps {
@@ -26,6 +32,7 @@ interface CreditBalanceCardProps {
   loading: boolean;
   onPurchase: (quantity: number) => void;
   purchaseLoading: boolean;
+  vendorId?: string;
 }
 
 const TRANSACTION_ICONS: Record<string, React.ReactNode> = {
@@ -33,6 +40,7 @@ const TRANSACTION_ICONS: Record<string, React.ReactNode> = {
   lead_unlock: <ArrowUpRight className="h-4 w-4" />,
   refund: <RefreshCw className="h-4 w-4" />,
   bonus: <Gift className="h-4 w-4" />,
+  bonus_expiration: <Clock className="h-4 w-4" />,
 };
 
 const TRANSACTION_COLORS: Record<string, string> = {
@@ -40,6 +48,7 @@ const TRANSACTION_COLORS: Record<string, string> = {
   lead_unlock: 'bg-coral-light/30 text-coral-dark',
   refund: 'bg-champagne text-secondary-foreground',
   bonus: 'bg-sage-light text-accent-foreground',
+  bonus_expiration: 'bg-destructive/20 text-destructive',
 };
 
 const TRANSACTION_LABELS: Record<string, string> = {
@@ -47,6 +56,7 @@ const TRANSACTION_LABELS: Record<string, string> = {
   lead_unlock: 'Liberação',
   refund: 'Estorno',
   bonus: 'Bônus',
+  bonus_expiration: 'Expirado',
 };
 
 export function CreditBalanceCard({
@@ -55,8 +65,43 @@ export function CreditBalanceCard({
   loading,
   onPurchase,
   purchaseLoading,
+  vendorId,
 }: CreditBalanceCardProps) {
   const [showHistory, setShowHistory] = useState(false);
+  const [expiringCredits, setExpiringCredits] = useState<ExpiringBonus[]>([]);
+
+  useEffect(() => {
+    if (vendorId) {
+      fetchExpiringCredits();
+    }
+  }, [vendorId, transactions]);
+
+  const fetchExpiringCredits = async () => {
+    if (!vendorId) return;
+
+    // Find bonus transactions that haven't expired yet
+    const bonusTransactions = transactions.filter(
+      (tx) =>
+        tx.transaction_type === 'bonus' &&
+        tx.expires_at &&
+        new Date(tx.expires_at) > new Date()
+    );
+
+    const expiring = bonusTransactions.map((tx) => {
+      const expiresAt = new Date(tx.expires_at!);
+      const now = new Date();
+      const diffTime = expiresAt.getTime() - now.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      return {
+        amount: tx.amount,
+        expires_at: tx.expires_at!,
+        days_remaining: diffDays,
+      };
+    });
+
+    setExpiringCredits(expiring.filter((e) => e.days_remaining > 0 && e.days_remaining <= 10));
+  };
 
   if (loading) {
     return (
@@ -68,6 +113,8 @@ export function CreditBalanceCard({
       </Card>
     );
   }
+
+  const totalExpiringAmount = expiringCredits.reduce((sum, e) => sum + e.amount, 0);
 
   return (
     <Card className="overflow-hidden border-2 border-sage/30 bg-gradient-to-br from-sage-light/30 to-background">
@@ -85,6 +132,26 @@ export function CreditBalanceCard({
             crédito{balance !== 1 ? 's' : ''}
           </span>
         </div>
+
+        {/* Expiring Credits Warning */}
+        {expiringCredits.length > 0 && (
+          <div className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-amber-800 dark:border-amber-800 dark:bg-amber-950/30 dark:text-amber-200">
+            <Gift className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="text-sm">
+              <p className="font-medium">
+                {totalExpiringAmount} crédito{totalExpiringAmount !== 1 ? 's' : ''} bônus expirando
+              </p>
+              <p className="text-xs opacity-80">
+                {expiringCredits.map((e, i) => (
+                  <span key={i}>
+                    {i > 0 && ', '}
+                    {e.amount} em {e.days_remaining} dia{e.days_remaining !== 1 ? 's' : ''}
+                  </span>
+                ))}
+              </p>
+            </div>
+          </div>
+        )}
 
         <p className="text-sm text-muted-foreground">
           Cada crédito libera o contato de 1 cliente (R$ {LEAD_PRICE} por crédito)
@@ -152,9 +219,16 @@ export function CreditBalanceCard({
                       <p className="font-medium">
                         {tx.description || TRANSACTION_LABELS[tx.transaction_type] || tx.transaction_type}
                       </p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(tx.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
-                      </p>
+                      <div className="flex items-center gap-2">
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(tx.created_at), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
+                        </p>
+                        {tx.transaction_type === 'bonus' && tx.expires_at && (
+                          <Badge variant="outline" className="text-[10px] px-1 py-0">
+                            Expira {format(new Date(tx.expires_at), "dd/MM", { locale: ptBR })}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
                   <div className="text-right">

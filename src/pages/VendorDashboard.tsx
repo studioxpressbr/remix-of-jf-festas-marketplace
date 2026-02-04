@@ -444,6 +444,7 @@ function DashboardContent() {
                 loading={loading}
                 onPurchase={handlePurchaseCredits}
                 purchaseLoading={purchaseLoading}
+                vendorId={user?.id}
               />
             </div>
 
