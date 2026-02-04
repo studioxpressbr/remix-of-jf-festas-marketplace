@@ -1,309 +1,313 @@
 
-# Plano: Filtros Avançados de Busca de Fornecedores
 
-## Resumo
+# Plano: Melhorias no Dashboard do Fornecedor
 
-Implementar sistema completo de filtros na página de busca (`/buscar`) que permite usuários (logados ou não) filtrar fornecedores por:
-- Categoria
-- Palavra-chave (nome, descrição)
-- Bairro
-- Cupons disponíveis
-- Classificação/Avaliação (estrelas 0-5)
+## Resumo Executivo
+
+Implementar funcionalidades pendentes no painel do fornecedor conforme lista de requisitos, organizadas por prioridade e complexidade.
 
 ---
 
-## Análise do Estado Atual
+## Analise do Estado Atual
 
-### Dados Existentes no Banco
-- **Bairros cadastrados:** Centro, Grama
-- **Cupons:** Nenhum ativo no momento (tabela existe)
-- **Reviews:** Nenhuma avaliação cadastrada (tabela existe com campo `rating` 0-5)
-- **Categorias:** Confeitaria, Doces, Salgados, Decoração, Outros
+### Funcionalidades Implementadas
 
-### Arquivos Principais
-- `src/pages/Buscar.tsx` - Página de busca atual
-- `src/components/home/VendorCard.tsx` - Card do fornecedor
+| Funcionalidade | Status | Arquivo Principal |
+|----------------|--------|-------------------|
+| Nome (fantasia) | OK | VendorOnboarding.tsx, VendorEditProfileModal.tsx |
+| Bairro | OK | VendorOnboarding.tsx, VendorEditProfileModal.tsx |
+| Categoria | OK | VendorOnboarding.tsx, VendorEditProfileModal.tsx |
+| Descricao | OK | VendorOnboarding.tsx, VendorEditProfileModal.tsx |
+| Ate 5 imagens | OK | ImageUpload.tsx (max 5MB cada) |
+| Selecionar imagem de perfil | OK | Primeira imagem = capa |
+| Editar descricao e imagens | OK | VendorEditProfileModal.tsx (reseta para pending) |
+| Ver clientes liberados para cotacao | OK | VendorDashboard.tsx (lista quotes + leads_access) |
+| Pagar plano anual | OK | VendorDashboard.tsx via Stripe |
+| Comprar creditos | OK | CreditBalanceCard.tsx via Stripe |
+| Ver plano atual | OK | VendorDashboard.tsx (subscription_status) |
+| Ver data de expiracao | **PARCIAL** | Existe no banco mas nao exibida |
 
----
+### Funcionalidades Pendentes
 
-## Parte 1: Atualização do Banco de Dados
-
-### Nova View SQL com Dados Agregados
-
-Criar nova view `vendors_search` que inclui contagem de cupons e média de avaliação:
-
-```sql
-CREATE OR REPLACE VIEW public.vendors_search AS
-SELECT 
-  v.id,
-  v.profile_id,
-  v.business_name,
-  v.category,
-  v.custom_category,
-  v.description,
-  v.neighborhood,
-  v.images,
-  v.created_at,
-  v.subscription_status,
-  v.is_approved,
-  v.approved_at,
-  v.category_id,
-  COALESCE(
-    (SELECT COUNT(*) FROM coupons c 
-     WHERE c.vendor_id = v.id 
-     AND c.is_active = true 
-     AND c.expires_at > NOW()
-     AND (c.max_uses IS NULL OR c.current_uses < c.max_uses)
-    ), 0
-  )::integer AS active_coupons_count,
-  COALESCE(
-    (SELECT AVG(r.rating)::numeric(2,1) FROM reviews r WHERE r.target_id = v.profile_id), 0
-  ) AS avg_rating,
-  COALESCE(
-    (SELECT COUNT(*) FROM reviews r WHERE r.target_id = v.profile_id), 0
-  )::integer AS review_count
-FROM vendors v
-WHERE v.is_approved = true 
-  AND (
-    v.subscription_status = 'active' 
-    OR v.approved_at > NOW() - INTERVAL '24 hours'
-  );
-```
+| Funcionalidade | Status | Prioridade |
+|----------------|--------|------------|
+| Inserir e excluir cupons de desconto | PENDENTE | Alta |
+| Indicar negocio fechado + valor | PENDENTE | Alta |
+| Classificar clientes que fecharam (0-5 estrelas) | PENDENTE | Alta |
+| Exibir data de expiracao do plano | PENDENTE | Baixa |
+| Excluir perfil | PENDENTE | Media |
 
 ---
 
-## Parte 2: Componente de Filtros
+## Parte 1: Exibir Data de Expiracao do Plano (Baixa Complexidade)
 
-### Novo Componente: `src/components/search/SearchFilters.tsx`
+### Modificacoes em VendorDashboard.tsx
 
-Painel lateral/colapsável com os filtros:
+Adicionar exibicao da data de expiracao no card de assinatura:
 
 ```
-+----------------------------------+
-|  🔍 FILTROS                      |
-+----------------------------------+
-|                                  |
-|  📝 Buscar                       |
-|  [________________] (input)      |
-|                                  |
-|  📁 Categoria                    |
-|  [Selecione...        ▼]         |
-|                                  |
-|  📍 Bairro                       |
-|  [Todos os bairros    ▼]         |
-|                                  |
-|  🎟️ Cupons                       |
-|  [ ] Apenas com cupons           |
-|                                  |
-|  ⭐ Avaliação mínima             |
-|  ☆☆☆☆☆  (0 estrelas)            |
-|  [=====○-----------]  slider     |
-|                                  |
-|  [Limpar Filtros]                |
-+----------------------------------+
++--------------------------------------------------+
+| [Crown] Maria Festere                            |
+| Assinatura ativa                                 |
+| Valido ate: 15 de fevereiro de 2027              |
++--------------------------------------------------+
 ```
 
-**Props do componente:**
-
-```typescript
-interface SearchFiltersProps {
-  searchTerm: string;
-  setSearchTerm: (term: string) => void;
-  selectedCategory: string;
-  setSelectedCategory: (cat: string) => void;
-  selectedNeighborhood: string;
-  setSelectedNeighborhood: (n: string) => void;
-  hasCoupons: boolean;
-  setHasCoupons: (v: boolean) => void;
-  minRating: number;
-  setMinRating: (r: number) => void;
-  neighborhoods: string[];
-  categories: Category[];
-  onClearFilters: () => void;
-}
-```
+**Estimativa: 0.5 credito**
 
 ---
 
-## Parte 3: Componente de Estrelas
+## Parte 2: Gestao de Cupons (Alta Complexidade)
 
-### Novo Componente: `src/components/ui/star-rating.tsx`
+### Novo Componente: VendorCouponsSection.tsx
 
-Componente reutilizável para exibir avaliações:
+Secao no dashboard para gerenciar cupons:
 
-```typescript
-interface StarRatingProps {
-  rating: number;      // 0-5
-  showValue?: boolean; // Mostrar "4.5" ao lado
-  size?: 'sm' | 'md' | 'lg';
-}
+```
++--------------------------------------------------+
+| MEUS CUPONS                           [+ Novo]   |
++--------------------------------------------------+
+| DESCONTO10     | 10%  | Expira: 10/02 | [Excluir]|
+| PROMO50        | R$50 | Expira: 08/02 | [Excluir]|
++--------------------------------------------------+
+| (Cupons expiram em 7 dias automaticamente)       |
++--------------------------------------------------+
 ```
 
-Visual: ★★★★☆ (4.2)
+### Novo Modal: VendorCouponModal.tsx
+
+Formulario para criar cupons:
+- Codigo do cupom (texto, unico)
+- Tipo de desconto: Fixo (R$) ou Percentual (%)
+- Valor do desconto
+- Limite de usos (opcional)
+
+### Validacoes
+
+- Codigo unico por fornecedor
+- Valor positivo
+- Expiracao automatica de 7 dias
+
+### Banco de Dados
+
+A tabela `coupons` ja existe com os campos necessarios:
+- `code`, `discount_type`, `discount_value`, `expires_at`, `max_uses`, `current_uses`, `is_active`, `vendor_id`
+
+**Estimativa: 3-4 creditos**
 
 ---
 
-## Parte 4: Atualização da Página de Busca
+## Parte 3: Indicar Negocio Fechado (Alta Complexidade)
 
-### Modificações em `src/pages/Buscar.tsx`
+### Atualizacoes Necessarias
 
-1. **Novos estados:**
-```typescript
-const [selectedNeighborhood, setSelectedNeighborhood] = useState('');
-const [hasCoupons, setHasCoupons] = useState(false);
-const [minRating, setMinRating] = useState(0);
-const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
+1. **Nova coluna na tabela `leads_access`:**
+   - `deal_closed`: boolean (default false)
+   - `deal_value`: numeric (nullable)
+   - `deal_closed_at`: timestamp (nullable)
+
+2. **Atualizacao do VendorDashboard.tsx:**
+   - Adicionar botao "Fechei o negocio" para leads desbloqueados
+   - Modal para informar valor do negocio
+
+### Fluxo Visual
+
+```
++--------------------------------------------------+
+| COTACAO - Joao Silva                             |
+| 15 de marco | 50 pessoas                         |
+| Tel: (32) 99999-0000 | email@example.com         |
++--------------------------------------------------+
+| [Badge: Liberado]                                |
+| [Fechei o negocio] [Avaliar cliente]             |
++--------------------------------------------------+
 ```
 
-2. **Buscar bairros únicos:**
-```typescript
-useEffect(() => {
-  async function fetchNeighborhoods() {
-    const { data } = await supabase
-      .from('vendors_search')
-      .select('neighborhood')
-      .not('neighborhood', 'is', null);
-    
-    const unique = [...new Set(data?.map(v => v.neighborhood))];
-    setNeighborhoods(unique.filter(Boolean));
-  }
-  fetchNeighborhoods();
-}, []);
+Apos clicar em "Fechei o negocio":
+
+```
++-----------------------------+
+| Qual foi o valor do negocio?|
+| R$ [__________]             |
+| [Cancelar] [Confirmar]      |
++-----------------------------+
 ```
 
-3. **Query com todos os filtros:**
-```typescript
-let query = supabase
-  .from('vendors_search')
-  .select('*');
-
-// Palavra-chave
-if (searchTerm) {
-  query = query.or(`business_name.ilike.%${term}%,description.ilike.%${term}%`);
-}
-
-// Categoria
-if (selectedCategory) {
-  query = query.eq('category', selectedCategory);
-}
-
-// Bairro
-if (selectedNeighborhood) {
-  query = query.eq('neighborhood', selectedNeighborhood);
-}
-
-// Cupons
-if (hasCoupons) {
-  query = query.gt('active_coupons_count', 0);
-}
-
-// Avaliação mínima
-if (minRating > 0) {
-  query = query.gte('avg_rating', minRating);
-}
-```
-
-4. **Layout responsivo:**
-```
-Desktop: Filtros à esquerda | Resultados à direita
-Mobile: Filtros em drawer colapsável no topo
-```
+**Estimativa: 2-3 creditos**
 
 ---
 
-## Parte 5: Atualização do VendorCard
+## Parte 4: Classificar Clientes (Media Complexidade)
 
-### Modificações em `src/components/home/VendorCard.tsx`
+### Regra de Negocio
 
-1. **Adicionar novos campos à interface:**
-```typescript
-interface Vendor {
-  // ... campos existentes
-  active_coupons_count?: number;
-  avg_rating?: number;
-  review_count?: number;
-}
+- Fornecedor pode avaliar cliente **apenas apos indicar que fechou o negocio**
+- Ou quando `deal_closed = true`
+- Avaliacao de 0-5 estrelas com comentario opcional
+
+### Modificacoes
+
+1. **Banco de Dados:**
+   - A tabela `reviews` ja existe
+   - Usar `reviewer_id` = fornecedor, `target_id` = cliente
+   - Adicionar verificacao: apenas para quotes com `deal_closed = true`
+
+2. **Novo Componente: VendorReviewClientModal.tsx**
+   - Selecao de estrelas (1-5)
+   - Comentario opcional (max 500 caracteres)
+   - Validacao: apenas 1 review por quote
+
+### Fluxo
+
+```
++--------------------------------------------------+
+| COTACAO - Joao Silva        [Negocio: R$ 500]    |
+| [Avaliar cliente]                                |
++--------------------------------------------------+
+          |
+          v
++-----------------------------+
+| Avalie o cliente            |
+| [*][*][*][*][ ]  4 estrelas |
+| Comentario (opcional):      |
+| [_________________________] |
+| [Cancelar] [Enviar]         |
++-----------------------------+
 ```
 
-2. **Exibir badges no card:**
-- Badge de cupom: 🎟️ quando `active_coupons_count > 0`
-- Estrelas: ★4.5 (12) quando houver avaliações
+**Estimativa: 2-3 creditos**
 
 ---
 
-## Parte 6: URL Params
+## Parte 5: Excluir Perfil (Media Complexidade)
 
-Todos os filtros serão sincronizados com a URL para compartilhamento:
+### Fluxo
+
+1. Botao "Excluir minha conta" nas configuracoes
+2. Modal de confirmacao com alerta sobre consequencias
+3. Digitacao de confirmacao ("EXCLUIR")
+4. Soft delete ou hard delete (a definir)
+
+### Consideracoes
+
+- **Soft delete**: Manter dados para auditoria, apenas desativar
+- **Hard delete**: Remover todos os dados (LGPD compliance)
+- Cascade: quotes, leads_access, vendor_credits, coupons, reviews
+
+### Componentes
+
+1. **Nova secao no VendorDashboard.tsx:** Area de "Configuracoes da Conta"
+2. **Novo Modal: DeleteAccountModal.tsx**
+
+### Fluxo Visual
 
 ```
-/buscar?q=bolo&categoria=confeitaria&bairro=Centro&cupons=1&avaliacao=4
++--------------------------------------------------+
+| ZONA DE PERIGO                                   |
++--------------------------------------------------+
+| [Excluir minha conta] (vermelho)                 |
+| Esta acao e irreversivel e removera todos os    |
+| seus dados da plataforma.                        |
++--------------------------------------------------+
 ```
+
+Modal de confirmacao:
+
+```
++-----------------------------+
+| ATENCAO: Acao Irreversivel  |
+| Voce perdera:               |
+| - Todas as cotacoes         |
+| - Historico de creditos     |
+| - Cupons ativos             |
+|                             |
+| Digite EXCLUIR para         |
+| confirmar:                  |
+| [__________]                |
+| [Cancelar] [Excluir conta]  |
++-----------------------------+
+```
+
+**Estimativa: 2-3 creditos**
 
 ---
 
 ## Estrutura de Arquivos
 
-| Arquivo | Ação |
+| Arquivo | Acao |
 |---------|------|
-| `supabase/migrations/xxx.sql` | **Criar** - View `vendors_search` |
-| `src/components/search/SearchFilters.tsx` | **Criar** - Painel de filtros |
-| `src/components/ui/star-rating.tsx` | **Criar** - Componente de estrelas |
-| `src/pages/Buscar.tsx` | **Modificar** - Integrar filtros |
-| `src/components/home/VendorCard.tsx` | **Modificar** - Exibir rating e cupons |
-| `src/integrations/supabase/types.ts` | **Atualizado automaticamente** |
+| `supabase/migrations/xxx.sql` | Criar - Campos deal_closed em leads_access |
+| `src/components/vendor/VendorCouponsSection.tsx` | Criar |
+| `src/components/vendor/VendorCouponModal.tsx` | Criar |
+| `src/components/vendor/VendorReviewClientModal.tsx` | Criar |
+| `src/components/vendor/DeleteAccountModal.tsx` | Criar |
+| `src/components/vendor/DealClosedModal.tsx` | Criar |
+| `src/pages/VendorDashboard.tsx` | Modificar - Integrar novas secoes |
 
 ---
 
-## Fluxo Visual (Desktop)
+## Resumo das Modificacoes no Dashboard
 
 ```
-+------------------+----------------------------------------+
-| FILTROS          | RESULTADOS                             |
-|                  |                                        |
-| 🔍 Buscar        | 3 fornecedores encontrados             |
-| [bolo________]   |                                        |
-|                  | +--------+  +--------+  +--------+     |
-| 📁 Categoria     | | 🎂     |  | 🍰     |  | 🧁     |     |
-| [Confeitaria ▼]  | | Maria  |  | João   |  | Ana    |     |
-|                  | | ★★★★☆  |  | ★★★★★  |  | ★★★☆☆  |     |
-| 📍 Bairro        | | 🎟️     |  |        |  | 🎟️     |     |
-| [Centro      ▼]  | +--------+  +--------+  +--------+     |
-|                  |                                        |
-| 🎟️ Cupons        |                                        |
-| [✓] Com cupom    |                                        |
-|                  |                                        |
-| ⭐ Avaliação     |                                        |
-| [====○-----]     |                                        |
-| Mínimo: 3 ⭐     |                                        |
-|                  |                                        |
-| [Limpar filtros] |                                        |
-+------------------+----------------------------------------+
++==================================================+
+| PAINEL DO FORNECEDOR                             |
++==================================================+
+|                                                  |
+| [Card Assinatura]         [Card Creditos]        |
+| - Status ativo/inativo    - Saldo atual          |
+| - Data de expiracao       - Extrato              |
+| - Botao Ativar/Renovar    - Comprar creditos     |
+|                                                  |
++--------------------------------------------------+
+| MEUS CUPONS                           [+ Novo]   |
+| - Lista de cupons ativos                         |
+| - Criar/Excluir cupons                           |
++--------------------------------------------------+
+| COTACOES RECEBIDAS                               |
+| - Lista de cotacoes                              |
+| - Liberar contato (usar credito)                 |
+| - Marcar negocio fechado + valor                 |
+| - Avaliar cliente (apos fechar)                  |
++--------------------------------------------------+
+| CONFIGURACOES                                    |
+| - Editar contato                                 |
+| - Editar perfil comercial                        |
+| - Excluir conta                                  |
++--------------------------------------------------+
 ```
 
 ---
 
-## Estimativa de Créditos
+## Estimativa Total de Creditos
 
-| Etapa | Créditos |
-|-------|----------|
-| Migration SQL (view) | ~1-2 |
-| SearchFilters.tsx | ~2-3 |
-| StarRating.tsx | ~1 |
-| Buscar.tsx (modificações) | ~2-3 |
-| VendorCard.tsx (modificações) | ~1-2 |
-| Testes e ajustes | ~1-2 |
-| **Total estimado** | **8-13 créditos** |
+| Funcionalidade | Creditos Estimados |
+|----------------|-------------------|
+| Exibir data de expiracao | 0.5 |
+| Gestao de cupons | 3-4 |
+| Indicar negocio fechado | 2-3 |
+| Classificar clientes | 2-3 |
+| Excluir perfil | 2-3 |
+| Testes e ajustes | 1-2 |
+| **Total** | **10-15 creditos** |
 
 ---
 
-## Considerações Técnicas
+## Ordem de Implementacao Sugerida
 
-1. **Performance:** A view `vendors_search` usa subqueries que são executadas por linha. Para grande volume de dados, considerar materialização ou colunas calculadas.
+1. **Fase 1 (Rapida):** Exibir data de expiracao
+2. **Fase 2:** Gestao de cupons (funcionalidade comercial importante)
+3. **Fase 3:** Indicar negocio fechado + Classificar clientes (dependem um do outro)
+4. **Fase 4:** Excluir perfil (menor prioridade)
 
-2. **RLS:** A view herda a visibilidade da tabela `vendors` - não expõe dados sensíveis.
+---
 
-3. **Cupons futuros:** O filtro já está preparado para quando cupons forem cadastrados.
+## Consideracoes Tecnicas
 
-4. **Reviews futuras:** O filtro de avaliação mostrará "sem avaliações" quando `review_count = 0`.
+1. **RLS:** Novas operacoes em coupons respeitam politicas existentes (vendor pode gerenciar proprios cupons)
 
-5. **Mobile-first:** O painel de filtros será colapsável em telas pequenas.
+2. **Reviews bidirecional:** A tabela reviews suporta tanto cliente avaliar fornecedor quanto fornecedor avaliar cliente
+
+3. **Cascade ao deletar:** Necessario definir comportamento de FK constraints antes de implementar exclusao
+
+4. **Soft delete vs Hard delete:** Recomendo soft delete (adicionar campo `deleted_at`) para compliance e auditoria
+
