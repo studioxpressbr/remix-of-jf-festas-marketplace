@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { Header } from '@/components/layout/Header';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -10,6 +10,10 @@ import { CreditBalanceCard } from '@/components/vendor/CreditBalanceCard';
 import { PendingApprovalCard } from '@/components/vendor/PendingApprovalCard';
 import { VendorEditProfileModal } from '@/components/vendor/VendorEditProfileModal';
 import { VendorContactModal } from '@/components/vendor/VendorContactModal';
+import { VendorCouponsSection } from '@/components/vendor/VendorCouponsSection';
+import { DealClosedModal } from '@/components/vendor/DealClosedModal';
+import { VendorReviewClientModal } from '@/components/vendor/VendorReviewClientModal';
+import { DeleteAccountModal } from '@/components/vendor/DeleteAccountModal';
 import { supabase } from '@/integrations/supabase/client';
 import { SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -28,8 +32,20 @@ import {
   Loader2,
   Pencil,
   UserCog,
+  Handshake,
+  Star,
+  Trash2,
+  DollarSign,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+interface LeadAccess {
+  id: string;
+  payment_status: string;
+  deal_closed: boolean;
+  deal_value: number | null;
+  deal_closed_at: string | null;
+}
 
 interface Quote {
   id: string;
@@ -44,9 +60,7 @@ interface Quote {
     whatsapp: string | null;
     email: string | null;
   } | null;
-  leads_access: {
-    payment_status: string;
-  }[] | null;
+  leads_access: LeadAccess[] | null;
 }
 
 interface VendorInfo {
@@ -74,6 +88,11 @@ interface CreditTransaction {
   created_at: string;
 }
 
+interface ClientReview {
+  quote_id: string;
+  rating: number;
+}
+
 function DashboardContent() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -82,11 +101,20 @@ function DashboardContent() {
   const [vendorInfo, setVendorInfo] = useState<VendorInfo | null>(null);
   const [creditBalance, setCreditBalance] = useState<number>(0);
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
+  const [clientReviews, setClientReviews] = useState<ClientReview[]>([]);
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [contactModalOpen, setContactModalOpen] = useState(false);
+  const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [dealModal, setDealModal] = useState<{ leadAccessId: string; clientName: string } | null>(null);
+  const [reviewModal, setReviewModal] = useState<{
+    quoteId: string;
+    clientId: string;
+    clientName: string;
+    eventDate: string;
+  } | null>(null);
 
   const fetchCredits = async (userId: string) => {
     // Fetch credit balance and transactions
@@ -126,13 +154,23 @@ function DashboardContent() {
       .select(`
         *,
         profiles!quotes_client_id_fkey(full_name, whatsapp, email),
-        leads_access(payment_status)
+        leads_access(id, payment_status, deal_closed, deal_value, deal_closed_at)
       `)
       .eq('vendor_id', user.id)
       .order('created_at', { ascending: false });
 
     if (quotesData) {
       setQuotes(quotesData as Quote[]);
+    }
+
+    // Fetch client reviews made by this vendor
+    const { data: reviewsData } = await supabase
+      .from('reviews')
+      .select('quote_id, rating')
+      .eq('reviewer_id', user.id);
+
+    if (reviewsData) {
+      setClientReviews(reviewsData);
     }
 
     // Fetch credits
@@ -189,7 +227,7 @@ function DashboardContent() {
           .select(`
             *,
             profiles!quotes_client_id_fkey(full_name, whatsapp, email),
-            leads_access(payment_status)
+            leads_access(id, payment_status, deal_closed, deal_value, deal_closed_at)
           `)
           .eq('vendor_id', user!.id)
           .order('created_at', { ascending: false });
@@ -362,6 +400,11 @@ function DashboardContent() {
                             </>
                           )}
                         </p>
+                        {vendorInfo?.subscription_status === 'active' && vendorInfo?.subscription_expiry && (
+                          <p className="text-xs text-muted-foreground">
+                            Válido até: {format(new Date(vendorInfo.subscription_expiry), "dd 'de' MMMM 'de' yyyy", { locale: ptBR })}
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="flex gap-2 shrink-0">
@@ -404,6 +447,11 @@ function DashboardContent() {
               />
             </div>
 
+            {/* Coupons Section */}
+            <div className="mb-8">
+              <VendorCouponsSection vendorId={vendorInfo.id} />
+            </div>
+
         {/* Quotes Section */}
         <h2 className="mb-4 font-display text-2xl font-semibold">
           Cotações Recebidas
@@ -425,6 +473,10 @@ function DashboardContent() {
           <div className="space-y-4">
             {quotes.map((quote) => {
               const unlocked = isContactUnlocked(quote);
+              const leadAccess = quote.leads_access?.find(la => la.payment_status === 'paid');
+              const dealClosed = leadAccess?.deal_closed;
+              const dealValue = leadAccess?.deal_value;
+              const hasReviewed = clientReviews.some(r => r.quote_id === quote.id);
 
               return (
                 <Card key={quote.id} className="overflow-hidden bg-gradient-card">
@@ -476,10 +528,55 @@ function DashboardContent() {
                       {/* Action */}
                       <div className="flex flex-col items-end gap-2">
                         {unlocked ? (
-                          <Badge className="bg-sage text-sage-foreground border-0">
-                            <CheckCircle className="mr-1 h-3 w-3" />
-                            Liberado
-                          </Badge>
+                          <>
+                            {dealClosed ? (
+                              <Badge className="bg-primary text-primary-foreground border-0">
+                                <DollarSign className="mr-1 h-3 w-3" />
+                                R$ {dealValue?.toFixed(2)}
+                              </Badge>
+                            ) : (
+                              <Badge className="bg-sage text-sage-foreground border-0">
+                                <CheckCircle className="mr-1 h-3 w-3" />
+                                Liberado
+                              </Badge>
+                            )}
+                            <div className="flex gap-2 mt-2">
+                              {!dealClosed && leadAccess && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setDealModal({
+                                    leadAccessId: leadAccess.id,
+                                    clientName: quote.profiles?.full_name || 'Cliente',
+                                  })}
+                                >
+                                  <Handshake className="mr-2 h-4 w-4" />
+                                  Fechei negócio
+                                </Button>
+                              )}
+                              {dealClosed && !hasReviewed && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setReviewModal({
+                                    quoteId: quote.id,
+                                    clientId: quote.client_id,
+                                    clientName: quote.profiles?.full_name || 'Cliente',
+                                    eventDate: quote.event_date,
+                                  })}
+                                >
+                                  <Star className="mr-2 h-4 w-4" />
+                                  Avaliar cliente
+                                </Button>
+                              )}
+                              {hasReviewed && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Star className="mr-1 h-3 w-3 fill-amber-400 text-amber-400" />
+                                  Avaliado
+                                </Badge>
+                              )}
+                            </div>
+                          </>
                         ) : (
                           <Button
                             onClick={() => handleUnlock(quote.id)}
@@ -516,6 +613,29 @@ function DashboardContent() {
             })}
           </div>
         )}
+
+        {/* Danger Zone - Delete Account */}
+        <Card className="mt-8 border-destructive/30">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-lg text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Zona de Perigo
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="mb-4 text-sm text-muted-foreground">
+              Esta ação é irreversível e removerá todos os seus dados da plataforma.
+            </p>
+            <Button
+              variant="outline"
+              className="border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground"
+              onClick={() => setDeleteModalOpen(true)}
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Excluir minha conta
+            </Button>
+          </CardContent>
+        </Card>
         </>
         )}
 
@@ -549,6 +669,41 @@ function DashboardContent() {
               email: profile.email,
             }}
             onSave={fetchData}
+          />
+        )}
+
+        {/* Delete Account Modal */}
+        {vendorInfo && (
+          <DeleteAccountModal
+            open={deleteModalOpen}
+            onOpenChange={setDeleteModalOpen}
+            vendorId={vendorInfo.id}
+            businessName={vendorInfo.business_name}
+          />
+        )}
+
+        {/* Deal Closed Modal */}
+        {dealModal && (
+          <DealClosedModal
+            open={!!dealModal}
+            onOpenChange={(open) => !open && setDealModal(null)}
+            leadAccessId={dealModal.leadAccessId}
+            clientName={dealModal.clientName}
+            onSuccess={fetchData}
+          />
+        )}
+
+        {/* Review Client Modal */}
+        {reviewModal && user && (
+          <VendorReviewClientModal
+            open={!!reviewModal}
+            onOpenChange={(open) => !open && setReviewModal(null)}
+            quoteId={reviewModal.quoteId}
+            clientId={reviewModal.clientId}
+            clientName={reviewModal.clientName}
+            vendorId={user.id}
+            eventDate={reviewModal.eventDate}
+            onSuccess={fetchData}
           />
         )}
       </main>
