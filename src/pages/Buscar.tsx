@@ -2,13 +2,10 @@ import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { Header } from '@/components/layout/Header';
-import { Input } from '@/components/ui/input';
-import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { VendorCard } from '@/components/home/VendorCard';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SearchFilters } from '@/components/search/SearchFilters';
 import { supabase } from '@/integrations/supabase/client';
-import { Search, X, Filter } from 'lucide-react';
 
 interface Vendor {
   id: string;
@@ -18,6 +15,9 @@ interface Vendor {
   neighborhood: string | null;
   images: string[] | null;
   profile_id: string;
+  active_coupons_count?: number;
+  avg_rating?: number;
+  review_count?: number;
 }
 
 interface Category {
@@ -29,12 +29,21 @@ interface Category {
 
 function SearchPage() {
   const [searchParams, setSearchParams] = useSearchParams();
+  
+  // Filter states
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
   const [selectedCategory, setSelectedCategory] = useState(searchParams.get('categoria') || '');
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState(searchParams.get('bairro') || '');
+  const [hasCoupons, setHasCoupons] = useState(searchParams.get('cupons') === '1');
+  const [minRating, setMinRating] = useState(Number(searchParams.get('avaliacao')) || 0);
+  
+  // Data states
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Fetch categories on mount
   useEffect(() => {
     async function fetchCategories() {
       const { data } = await supabase
@@ -47,20 +56,47 @@ function SearchPage() {
     fetchCategories();
   }, []);
 
+  // Fetch unique neighborhoods on mount
+  useEffect(() => {
+    async function fetchNeighborhoods() {
+      const { data } = await supabase
+        .from('vendors_search' as any)
+        .select('neighborhood')
+        .not('neighborhood', 'is', null);
+      
+      if (data) {
+        const unique = [...new Set(data.map((v: any) => v.neighborhood as string))];
+        setNeighborhoods(unique.filter(Boolean));
+      }
+    }
+    fetchNeighborhoods();
+  }, []);
+
+  // Update URL params when filters change
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchTerm) params.set('q', searchTerm);
+    if (selectedCategory && selectedCategory !== 'all') params.set('categoria', selectedCategory);
+    if (selectedNeighborhood && selectedNeighborhood !== 'all') params.set('bairro', selectedNeighborhood);
+    if (hasCoupons) params.set('cupons', '1');
+    if (minRating > 0) params.set('avaliacao', String(minRating));
+    setSearchParams(params, { replace: true });
+  }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating, setSearchParams]);
+
+  // Search vendors when filters change
   useEffect(() => {
     async function searchVendors() {
       setLoading(true);
       
-      // Use the public view which excludes sensitive fields
       let query = supabase
-        .from('vendors_public' as any)
+        .from('vendors_search' as any)
         .select('*');
 
+      // Text search
       if (searchTerm) {
-        // Sanitize search term: remove special SQL/ILIKE characters and limit length
         const sanitizedTerm = searchTerm
-          .slice(0, 100) // Limit length
-          .replace(/[%_\\[\]]/g, '') // Remove ILIKE special chars
+          .slice(0, 100)
+          .replace(/[%_\\[\]]/g, '')
           .trim();
         
         if (sanitizedTerm.length > 0) {
@@ -68,9 +104,24 @@ function SearchPage() {
         }
       }
 
-      if (selectedCategory) {
-        // Cast to any to handle enum type
+      // Category filter
+      if (selectedCategory && selectedCategory !== 'all') {
         query = query.eq('category', selectedCategory as never);
+      }
+
+      // Neighborhood filter
+      if (selectedNeighborhood && selectedNeighborhood !== 'all') {
+        query = query.eq('neighborhood', selectedNeighborhood);
+      }
+
+      // Coupons filter
+      if (hasCoupons) {
+        query = query.gt('active_coupons_count', 0);
+      }
+
+      // Rating filter
+      if (minRating > 0) {
+        query = query.gte('avg_rating', minRating);
       }
 
       const { data } = await query.order('created_at', { ascending: false });
@@ -79,23 +130,23 @@ function SearchPage() {
     }
 
     searchVendors();
-  }, [searchTerm, selectedCategory]);
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    const params = new URLSearchParams();
-    if (searchTerm) params.set('q', searchTerm);
-    if (selectedCategory) params.set('categoria', selectedCategory);
-    setSearchParams(params);
-  };
+  }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating]);
 
   const clearFilters = () => {
     setSearchTerm('');
     setSelectedCategory('');
-    setSearchParams({});
+    setSelectedNeighborhood('');
+    setHasCoupons(false);
+    setMinRating(0);
   };
 
-  const hasActiveFilters = searchTerm || selectedCategory;
+  const hasActiveFilters = Boolean(
+    searchTerm || 
+    (selectedCategory && selectedCategory !== 'all') || 
+    (selectedNeighborhood && selectedNeighborhood !== 'all') || 
+    hasCoupons || 
+    minRating > 0
+  );
 
   return (
     <div className="min-h-screen bg-background">
@@ -110,107 +161,57 @@ function SearchPage() {
           </p>
         </div>
 
-        {/* Search Form */}
-        <form onSubmit={handleSearch} className="mb-6">
-          <div className="flex flex-col gap-4 sm:flex-row">
-            <div className="relative flex-1">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Buscar por nome, descrição ou bairro..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <Button type="submit" className="bg-gradient-orange shadow-orange">
-              <Search className="mr-2 h-4 w-4" />
-              Buscar
-            </Button>
-          </div>
-        </form>
+        <div className="flex flex-col gap-8 lg:flex-row">
+          {/* Filters Sidebar */}
+          <SearchFilters
+            searchTerm={searchTerm}
+            setSearchTerm={setSearchTerm}
+            selectedCategory={selectedCategory}
+            setSelectedCategory={setSelectedCategory}
+            selectedNeighborhood={selectedNeighborhood}
+            setSelectedNeighborhood={setSelectedNeighborhood}
+            hasCoupons={hasCoupons}
+            setHasCoupons={setHasCoupons}
+            minRating={minRating}
+            setMinRating={setMinRating}
+            neighborhoods={neighborhoods}
+            categories={categories}
+            onClearFilters={clearFilters}
+            hasActiveFilters={hasActiveFilters}
+          />
 
-        {/* Category Filter */}
-        <div className="mb-8">
-          <div className="flex items-center gap-2 mb-3">
-            <Filter className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Filtrar por categoria:</span>
-          </div>
-          <div className="flex flex-wrap gap-2">
-            <Badge
-              variant={!selectedCategory ? "default" : "outline"}
-              className="cursor-pointer transition-all hover:scale-105"
-              onClick={() => setSelectedCategory('')}
-            >
-              Todas
-            </Badge>
-            {categories.map((cat) => (
-              <Badge
-                key={cat.id}
-                variant={selectedCategory === cat.slug ? "default" : "outline"}
-                className="cursor-pointer transition-all hover:scale-105"
-                onClick={() => setSelectedCategory(cat.slug)}
-              >
-                {cat.emoji} {cat.name}
-              </Badge>
-            ))}
+          {/* Results */}
+          <div className="flex-1">
+            {loading ? (
+              <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                {[1, 2, 3, 4, 5, 6].map((i) => (
+                  <Skeleton key={i} className="aspect-[4/5] rounded-xl" />
+                ))}
+              </div>
+            ) : vendors.length === 0 ? (
+              <div className="py-16 text-center">
+                <span className="mb-4 block text-5xl">🔍</span>
+                <h3 className="font-display text-xl font-semibold">
+                  Nenhum fornecedor encontrado
+                </h3>
+                <p className="mt-2 text-muted-foreground">
+                  Tente ajustar seus filtros ou termos de busca
+                </p>
+              </div>
+            ) : (
+              <>
+                <p className="mb-4 text-sm text-muted-foreground">
+                  {vendors.length} fornecedor{vendors.length !== 1 ? 'es' : ''} encontrado{vendors.length !== 1 ? 's' : ''}
+                </p>
+                <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
+                  {vendors.map((vendor, index) => (
+                    <VendorCard key={vendor.id} vendor={vendor} index={index} />
+                  ))}
+                </div>
+              </>
+            )}
           </div>
         </div>
-
-        {/* Active Filters */}
-        {hasActiveFilters && (
-          <div className="mb-6 flex items-center gap-2">
-            <span className="text-sm text-muted-foreground">Filtros ativos:</span>
-            {searchTerm && (
-              <Badge variant="secondary" className="gap-1">
-                "{searchTerm}"
-                <X className="h-3 w-3 cursor-pointer" onClick={() => setSearchTerm('')} />
-              </Badge>
-            )}
-            {selectedCategory && (
-              <Badge variant="secondary" className="gap-1">
-                {categories.find(c => c.slug === selectedCategory)?.name || selectedCategory}
-                <X className="h-3 w-3 cursor-pointer" onClick={() => setSelectedCategory('')} />
-              </Badge>
-            )}
-            <Button variant="ghost" size="sm" onClick={clearFilters}>
-              Limpar tudo
-            </Button>
-          </div>
-        )}
-
-        {/* Results */}
-        {loading ? (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[1, 2, 3, 4, 5, 6].map((i) => (
-              <Skeleton key={i} className="aspect-[4/5] rounded-xl" />
-            ))}
-          </div>
-        ) : vendors.length === 0 ? (
-          <div className="py-16 text-center">
-            <span className="mb-4 block text-5xl">🔍</span>
-            <h3 className="font-display text-xl font-semibold">
-              Nenhum fornecedor encontrado
-            </h3>
-            <p className="mt-2 text-muted-foreground">
-              Tente ajustar seus filtros ou termos de busca
-            </p>
-            <Button variant="outline" className="mt-4" onClick={clearFilters}>
-              Limpar filtros
-            </Button>
-          </div>
-        ) : (
-          <>
-            <p className="mb-4 text-sm text-muted-foreground">
-              {vendors.length} fornecedor{vendors.length !== 1 ? 'es' : ''} encontrado{vendors.length !== 1 ? 's' : ''}
-            </p>
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {vendors.map((vendor, index) => (
-                <VendorCard key={vendor.id} vendor={vendor} index={index} />
-              ))}
-            </div>
-          </>
-        )}
       </main>
 
       {/* Footer */}

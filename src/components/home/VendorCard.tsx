@@ -2,9 +2,10 @@ import * as React from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { MapPin } from 'lucide-react';
+import { MapPin, Ticket } from 'lucide-react';
 import { VENDOR_CATEGORIES, CATEGORY_COLORS } from '@/lib/constants';
 import { cn } from '@/lib/utils';
+import { StarRating } from '@/components/ui/star-rating';
 
 interface Vendor {
   id: string;
@@ -14,6 +15,9 @@ interface Vendor {
   description: string | null;
   neighborhood: string | null;
   images: string[] | null;
+  active_coupons_count?: number;
+  avg_rating?: number;
+  review_count?: number;
 }
 
 interface VendorCardProps {
@@ -29,6 +33,9 @@ export const VendorCard = React.forwardRef<HTMLAnchorElement, VendorCardProps>(
     // Create varying heights for masonry effect
     const heights = ['h-64', 'h-72', 'h-80', 'h-64', 'h-72'];
     const heightClass = heights[index % heights.length];
+
+    const hasCoupons = (vendor.active_coupons_count ?? 0) > 0;
+    const hasRating = (vendor.avg_rating ?? 0) > 0;
 
     return (
       <Link ref={ref} to={`/vendor/${vendor.profile_id}`}>
@@ -49,27 +56,50 @@ export const VendorCard = React.forwardRef<HTMLAnchorElement, VendorCardProps>(
             {/* Overlay gradient */}
             <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
             
-            {/* Category badge */}
-            <Badge
-              className={cn(
-                'absolute left-3 top-3 border-0',
-                CATEGORY_COLORS[vendor.category] || 'bg-muted text-muted-foreground'
+            {/* Top badges row */}
+            <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+              {/* Category badge */}
+              <Badge
+                className={cn(
+                  'border-0',
+                  CATEGORY_COLORS[vendor.category] || 'bg-muted text-muted-foreground'
+                )}
+              >
+                {categoryInfo?.emoji} {categoryInfo?.label}
+              </Badge>
+              
+              {/* Coupon badge */}
+              {hasCoupons && (
+                <Badge className="border-0 bg-emerald-500 text-white">
+                  <Ticket className="mr-1 h-3 w-3" />
+                  Cupom
+                </Badge>
               )}
-            >
-              {categoryInfo?.emoji} {categoryInfo?.label}
-            </Badge>
+            </div>
           </div>
 
           <CardContent className="absolute bottom-0 left-0 right-0 p-4">
             <h3 className="font-display text-lg font-semibold text-primary-foreground">
               {vendor.business_name}
             </h3>
-            {vendor.neighborhood && (
-              <p className="mt-1 flex items-center gap-1 text-sm text-primary-foreground/80">
-                <MapPin className="h-3 w-3" />
-                {vendor.neighborhood}
-              </p>
-            )}
+            
+            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+              {vendor.neighborhood && (
+                <p className="flex items-center gap-1 text-sm text-primary-foreground/80">
+                  <MapPin className="h-3 w-3" />
+                  {vendor.neighborhood}
+                </p>
+              )}
+              
+              {hasRating && (
+                <StarRating
+                  rating={vendor.avg_rating ?? 0}
+                  reviewCount={vendor.review_count}
+                  size="sm"
+                  className="text-primary-foreground/90 [&_svg]:text-amber-400 [&_svg]:fill-amber-400 [&_.text-muted-foreground]:text-primary-foreground/70"
+                />
+              )}
+            </div>
           </CardContent>
         </Card>
       </Link>
