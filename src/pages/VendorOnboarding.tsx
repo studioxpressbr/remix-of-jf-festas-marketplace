@@ -43,7 +43,12 @@ const vendorFormSchema = z.object({
     .trim()
     .min(3, 'Nome deve ter pelo menos 3 caracteres')
     .max(100, 'Nome deve ter no máximo 100 caracteres'),
-  category: z.enum(['confeitaria', 'doces', 'salgados', 'decoracao', 'outros'], {
+  category: z.enum([
+    'confeitaria', 'doces', 'salgados', 'decoracao', 
+    'buffet', 'cerimonialista', 'personalizados', 'espaco',
+    'recreacao', 'foto-filme', 'baloes', 'aluguel',
+    'churrasqueiro', 'equipes', 'bar', 'outros'
+  ], {
     required_error: 'Selecione uma categoria',
   }),
   custom_category: z.string().optional(),
