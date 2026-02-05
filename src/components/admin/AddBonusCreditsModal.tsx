@@ -12,7 +12,42 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Gift, Loader2, AlertCircle, Users } from 'lucide-react';
+import { Gift, Loader2, AlertCircle, Users, RefreshCw } from 'lucide-react';
+
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 1500;
+
+async function invokeWithRetry(
+  body: { all?: boolean; vendorId?: string; amount: number },
+  onRetry?: (attempt: number) => void
+): Promise<{ data: unknown; error: Error | null }> {
+  let lastError: Error | null = null;
+
+  for (let attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+    try {
+      const { data, error } = await supabase.functions.invoke('add-bonus-credits', {
+        body,
+      });
+
+      if (error) {
+        // API error - don't retry
+        return { data: null, error };
+      }
+
+      return { data, error: null };
+    } catch (err) {
+      lastError = err instanceof Error ? err : new Error('Erro desconhecido');
+      
+      // Network error - retry if not last attempt
+      if (attempt < MAX_RETRIES) {
+        onRetry?.(attempt + 1);
+        await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+      }
+    }
+  }
+
+  return { data: null, error: lastError };
+}
 
 interface AddBonusCreditsModalProps {
   open: boolean;
@@ -32,24 +67,34 @@ export function AddBonusCreditsModal({
 }: AddBonusCreditsModalProps) {
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [retryAttempt, setRetryAttempt] = useState(0);
   const [amount, setAmount] = useState<5 | 10>(5);
   const [allVendors, setAllVendors] = useState(false);
 
   const handleSubmit = async () => {
     setLoading(true);
+    setRetryAttempt(0);
 
     try {
-      const { data, error } = await supabase.functions.invoke('add-bonus-credits', {
-        body: allVendors
-          ? { all: true, amount }
-          : { vendorId: targetVendor?.id, amount },
+      const body = allVendors
+        ? { all: true, amount }
+        : { vendorId: targetVendor?.id, amount };
+
+      const { data, error } = await invokeWithRetry(body, (attempt) => {
+        setRetryAttempt(attempt);
+        toast({
+          title: 'Tentando novamente...',
+          description: `Tentativa ${attempt} de ${MAX_RETRIES}`,
+        });
       });
 
-      if (error) throw error;
+      if (error) {
+        throw error;
+      }
 
       toast({
         title: 'Créditos adicionados!',
-        description: data.message,
+        description: (data as { message: string })?.message || 'Operação concluída com sucesso.',
       });
 
       onSuccess();
@@ -58,13 +103,18 @@ export function AddBonusCreditsModal({
       setAmount(5);
     } catch (error) {
       console.error('Error:', error);
+      const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+      
       toast({
-        title: 'Erro',
-        description: 'Não foi possível adicionar os créditos. Tente novamente.',
+        title: isNetworkError ? 'Erro de conexão' : 'Erro',
+        description: isNetworkError
+          ? 'Não foi possível conectar ao servidor após várias tentativas. Verifique sua conexão e tente novamente.'
+          : 'Não foi possível adicionar os créditos. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
       setLoading(false);
+      setRetryAttempt(0);
     }
   };
 
@@ -143,7 +193,7 @@ export function AddBonusCreditsModal({
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
+          <Button variant="outline" onClick={() => onOpenChange(false)} disabled={loading}>
             Cancelar
           </Button>
           <Button
@@ -152,11 +202,18 @@ export function AddBonusCreditsModal({
             className="bg-sage hover:bg-sage/90"
           >
             {loading ? (
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              retryAttempt > 0 ? (
+                <>
+                  <RefreshCw className="mr-2 h-4 w-4 animate-spin" />
+                  Tentativa {retryAttempt}/{MAX_RETRIES}
+                </>
+              ) : (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )
             ) : (
               <Gift className="mr-2 h-4 w-4" />
             )}
-            Adicionar {amount} Créditos
+            {!loading && `Adicionar ${amount} Créditos`}
           </Button>
         </DialogFooter>
       </DialogContent>
