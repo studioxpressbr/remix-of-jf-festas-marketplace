@@ -777,6 +777,17 @@ export type Database = {
         | "salgados"
         | "decoracao"
         | "outros"
+        | "cerimonialista"
+        | "personalizados"
+        | "espaco"
+        | "buffet"
+        | "recreacao"
+        | "foto-filme"
+        | "baloes"
+        | "aluguel"
+        | "churrasqueiro"
+        | "equipes"
+        | "bar"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -915,6 +926,17 @@ export const Constants = {
         "salgados",
         "decoracao",
         "outros",
+        "cerimonialista",
+        "personalizados",
+        "espaco",
+        "buffet",
+        "recreacao",
+        "foto-filme",
+        "baloes",
+        "aluguel",
+        "churrasqueiro",
+        "equipes",
+        "bar",
       ],
     },
   },
