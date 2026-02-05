@@ -1,3 +1,24 @@
+# JF Festas - Robots.txt
+# https://jffestas.com.br
+
+User-agent: *
+Allow: /
+Allow: /buscar
+Allow: /precos
+Allow: /termos
+Allow: /categoria/
+
+# Bloquear páginas privadas e administrativas
+Disallow: /admin
+Disallow: /dashboard
+Disallow: /minha-conta
+Disallow: /cadastro-fornecedor
+Disallow: /pagamento-sucesso
+Disallow: /lead-desbloqueado
+Disallow: /creditos-sucesso
+Disallow: /reset-password
+
+# Bots específicos
 User-agent: Googlebot
 Allow: /
 
@@ -10,5 +31,5 @@ Allow: /
 User-agent: facebookexternalhit
 Allow: /
 
-User-agent: *
-Allow: /
+# Sitemap
+Sitemap: https://jffestas.com.br/sitemap.xml
