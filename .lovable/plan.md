@@ -1,54 +1,104 @@
 
-# Plano: Correção do Erro "Failed to Fetch" no Sistema de Créditos Bônus
 
-## Diagnóstico
+# Plano: Adicionar Novas Categorias de Fornecedores
 
-A Edge Function `add-bonus-credits` está funcionando corretamente - testei diretamente e adicionei 15 créditos ao fornecedor com sucesso.
+## Resumo
 
-O erro "Failed to fetch" no navegador acontece porque:
-1. A função tem "cold start" (demora ~30ms para iniciar quando está inativa)
-2. O navegador pode ter timeout curto ou problemas de rede transitórios
-3. Não há mecanismo de retry no código atual
+Vou adicionar 11 novas categorias ao sistema JF Festas, mantendo as 5 existentes. As novas categorias são:
 
-## Correções Propostas
-
-### 1. Adicionar retry automático no modal
-
-Modificar `AddBonusCreditsModal.tsx` para tentar novamente em caso de erro de rede:
-
-```text
-+----------------------------------------+
-| Tentativa 1 → Falhou                   |
-| Tentativa 2 → Falhou                   |
-| Tentativa 3 → Sucesso!                 |
-+----------------------------------------+
-```
-
-### 2. Melhorar mensagens de erro
-
-Diferenciar entre erros de rede e erros da API:
-- Erro de rede: "Problema de conexão. Tentando novamente..."
-- Erro da API: Mostrar mensagem específica do servidor
-
-### 3. Adicionar timeout maior
-
-Configurar timeout de 30 segundos para dar tempo ao cold start.
+| Nova Categoria | Slug | Emoji |
+|----------------|------|-------|
+| Cerimonialista | cerimonialista | 👰 |
+| Personalizados | personalizados | 🎁 |
+| Espaço para Festas | espaco | 🏠 |
+| Buffet | buffet | 🍽️ |
+| Recreação | recreacao | 🎪 |
+| Foto e Filme | foto-filme | 📸 |
+| Balões | baloes | 🎈 |
+| Aluguel | aluguel | 🪑 |
+| Churrasqueiro | churrasqueiro | 🍖 |
+| Equipes | equipes | 👥 |
+| Bar e Bartender | bar | 🍹 |
 
 ## Arquivos a Modificar
 
-- `src/components/admin/AddBonusCreditsModal.tsx` - Adicionar retry e melhor tratamento de erro
+### 1. Banco de Dados (Migration)
+Atualizar o enum `vendor_category` para incluir as novas categorias.
 
-## Verificação de Dados
+### 2. `src/lib/constants.ts`
+Adicionar as novas categorias em `VENDOR_CATEGORIES` e suas cores em `CATEGORY_COLORS`.
 
-Os créditos já foram adicionados com sucesso:
+### 3. `src/pages/VendorOnboarding.tsx`
+Atualizar a validação Zod para aceitar as novas categorias.
 
-| Transação | Valor | Saldo Após | Expira Em |
-|-----------|-------|------------|-----------|
-| Bônus | +10 | 15 | 15/02/2026 |
-| Bônus | +5 | 5 | 15/02/2026 |
+### 4. `src/components/vendor/VendorEditProfileModal.tsx`
+Atualizar a validação Zod para aceitar as novas categorias.
 
-O fornecedor `e07bc575-4ed3-42cc-ab8c-1e36baf36643` agora tem 15 créditos bônus disponíveis.
+---
+
+## Detalhes Técnicos
+
+### Migration SQL
+
+```sql
+-- Adicionar novos valores ao enum vendor_category
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'cerimonialista';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'personalizados';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'espaco';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'buffet';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'recreacao';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'foto-filme';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'baloes';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'aluguel';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'churrasqueiro';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'equipes';
+ALTER TYPE vendor_category ADD VALUE IF NOT EXISTS 'bar';
+```
+
+### Novas Constantes
+
+```typescript
+export const VENDOR_CATEGORIES = [
+  { value: 'confeitaria', label: 'Confeitaria', emoji: '🎂' },
+  { value: 'doces', label: 'Doces', emoji: '🍬' },
+  { value: 'salgados', label: 'Salgados', emoji: '🥟' },
+  { value: 'decoracao', label: 'Decoração', emoji: '🎈' },
+  { value: 'buffet', label: 'Buffet', emoji: '🍽️' },
+  { value: 'cerimonialista', label: 'Cerimonialista', emoji: '👰' },
+  { value: 'personalizados', label: 'Personalizados', emoji: '🎁' },
+  { value: 'espaco', label: 'Espaço para Festas', emoji: '🏠' },
+  { value: 'recreacao', label: 'Recreação', emoji: '🎪' },
+  { value: 'foto-filme', label: 'Foto e Filme', emoji: '📸' },
+  { value: 'baloes', label: 'Balões', emoji: '🎈' },
+  { value: 'aluguel', label: 'Aluguel', emoji: '🪑' },
+  { value: 'churrasqueiro', label: 'Churrasqueiro', emoji: '🍖' },
+  { value: 'equipes', label: 'Equipes', emoji: '👥' },
+  { value: 'bar', label: 'Bar e Bartender', emoji: '🍹' },
+  { value: 'outros', label: 'Outros', emoji: '✨' },
+] as const;
+```
+
+### Validação Zod Atualizada
+
+```typescript
+category: z.enum([
+  'confeitaria', 'doces', 'salgados', 'decoracao', 
+  'buffet', 'cerimonialista', 'personalizados', 'espaco',
+  'recreacao', 'foto-filme', 'baloes', 'aluguel',
+  'churrasqueiro', 'equipes', 'bar', 'outros'
+])
+```
+
+---
+
+## Ordem de Execução
+
+1. Criar migration para atualizar o enum no banco
+2. Atualizar `constants.ts` com novas categorias e cores
+3. Atualizar validação em `VendorOnboarding.tsx`
+4. Atualizar validação em `VendorEditProfileModal.tsx`
 
 ## Estimativa
 
-1 crédito para implementar as melhorias de robustez.
+1-2 créditos para implementar todas as mudanças.
+
