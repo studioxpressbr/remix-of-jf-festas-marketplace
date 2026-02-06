@@ -82,16 +82,29 @@ export function QuoteModal({ open, onOpenChange, vendorId, vendorName }: QuoteMo
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('quotes').insert({
-        client_id: user.id,
-        vendor_id: vendorId,
-        event_date: format(data.event_date, 'yyyy-MM-dd'),
-        pax_count: data.pax_count,
-        description: data.description || null,
-        status: 'open',
-      });
+      const { data: insertedQuote, error } = await supabase
+        .from('quotes')
+        .insert({
+          client_id: user.id,
+          vendor_id: vendorId,
+          event_date: format(data.event_date, 'yyyy-MM-dd'),
+          pax_count: data.pax_count,
+          description: data.description || null,
+          status: 'open',
+        })
+        .select('id')
+        .single();
 
       if (error) throw error;
+
+      // Trigger email notification (non-blocking)
+      if (insertedQuote?.id) {
+        supabase.functions
+          .invoke('notify-vendor-quote', {
+            body: { quoteId: insertedQuote.id },
+          })
+          .catch((err) => console.error('Notification failed:', err));
+      }
 
       toast({
         title: 'Cotação enviada!',
