@@ -1,139 +1,97 @@
 
-# Plano: Correções e Funcionalidades Pendentes no JF Festas
 
-## Resumo dos Problemas Identificados
+# Plano: Implementar Notificações por E-mail para Fornecedores
 
-| # | Problema | Status | Ação Necessária |
-|---|----------|--------|-----------------|
-| 1 | Adicionar créditos bônus não funciona | Bug | Corrigir CORS headers na Edge Function |
-| 2 | Testar compra de pacote anual e créditos | Bloqueado | **Configurar STRIPE_SECRET_KEY** |
-| 3 | Fornecedor recebe e-mail ao receber cotação? | Não implementado | Criar sistema de notificação |
-| 4 | Como o fornecedor aponta venda e valor? | Já implementado | Apenas explicar o fluxo |
+## 1. Resumo
+Com a `RESEND_API_KEY` fornecida (`re_h3ncWfjx_Fp9yvMMbjscskeB1t5ocPRdw`), vou:
 
----
+1. **Configurar o secret** no backend
+2. **Criar Edge Function `notify-vendor-quote`** para enviar e-mails via Resend
+3. **Modificar `QuoteModal.tsx`** para disparar a notificação após envio bem-sucedido
 
-## 1. Corrigir Função "Adicionar Créditos Bônus"
+## 2. Implementação
 
-### Problema
-O erro "Failed to fetch" indica um problema de CORS. A Edge Function `add-bonus-credits` usa headers CORS simples (`*`) que são mais permissivos, porém falta o header completo usado nas outras funções.
+### 2.1 Configurar Secret
+- Adicionar `RESEND_API_KEY` aos secrets do projeto
 
-### Correção
-Atualizar os CORS headers na função `add-bonus-credits/index.ts`:
+### 2.2 Criar Edge Function: `supabase/functions/notify-vendor-quote/index.ts`
+
+**Responsabilidades:**
+- Receber `quoteId` do frontend
+- Recuperar dados da cotação (quotes + client profile)
+- Recuperar e-mail do fornecedor (via vendor_id)
+- Construir HTML do e-mail informativo
+- Enviar via Resend
+- Retornar sucesso ou erro
+
+**Estrutura:**
+- CORS headers completos (preflight + error responses)
+- Autenticação via JWT (usuário logado)
+- Queries ao banco de dados via Supabase client
+- Tratamento de erros robusto
+- E-mail com:
+  - Saudação para o fornecedor
+  - Detalhes da cotação (data, pax, descrição)
+  - Nome e WhatsApp do cliente
+  - Link para dashboard do fornecedor
+  - Botão CTA "Ver Cotação"
+
+**Tecnologia:**
+- Resend SDK para envio
+- From: `onboarding@resend.dev` (pode mudar depois)
+
+### 2.3 Modificar `QuoteModal.tsx`
+
+**Local:** Linhas 80-110 (função `onSubmit`)
+
+**Mudança:**
+Após sucesso do insert, chamar a Edge Function de notificação:
 
 ```typescript
-// ANTES (linha 3-5):
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
-};
+// Após inserir cotação com sucesso
+const { error } = await supabase.from('quotes').insert({...});
+if (error) throw error;
 
-// DEPOIS:
-const corsHeaders = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
-};
+// Disparar notificação (não bloqueia UX)
+supabase.functions
+  .invoke('notify-vendor-quote', {
+    body: { quoteId: insertedQuote.id },
+  })
+  .catch(err => console.error('Notification failed:', err));
+
+toast({
+  title: 'Cotação enviada!',
+  description: 'O fornecedor receberá sua solicitação.',
+});
 ```
 
----
+## 3. Fluxo Completo
 
-## 2. Testar Compra de Pacote Anual e Créditos
-
-### Problema Crítico
-As Edge Functions de pagamento (`purchase-credits`, `create-checkout`, `verify-credit-purchase`) requerem `STRIPE_SECRET_KEY`, mas esta chave **não está configurada** no projeto.
-
-### Ação Necessária
-1. Obter a chave secreta do Stripe em https://dashboard.stripe.com/apikeys
-2. Configurar o segredo no projeto via ferramenta `add_secret`
-3. Após configurar, as funções de compra funcionarão
-
-### Testar Depois da Configuração
-- Compra de créditos: Clicar em "Comprar X créditos" no dashboard do fornecedor
-- Pacote anual: Clicar em "Ativar por R$ 99/ano" no dashboard
-
----
-
-## 3. Notificação por E-mail para Fornecedores (Nova Cotação)
-
-### Status Atual
-Quando um cliente envia uma cotação (via `QuoteModal.tsx`), os dados são salvos no banco, mas **nenhuma notificação é enviada** ao fornecedor.
-
-### Solução Proposta
-Criar uma Edge Function `notify-vendor-quote` que será chamada após inserir uma cotação. 
-
-### Fluxo:
-1. Cliente envia cotação → Insere no banco
-2. Após sucesso, chamar Edge Function de notificação
-3. Function busca e-mail do fornecedor e envia via Resend
-
-### Arquivos a Criar/Modificar:
-| Arquivo | Ação |
-|---------|------|
-| `supabase/functions/notify-vendor-quote/index.ts` | Criar função |
-| `src/components/vendor/QuoteModal.tsx` | Chamar função após insert |
-
-### Dependência
-Requer configurar `RESEND_API_KEY` como segredo para enviar e-mails.
-
----
-
-## 4. Como o Fornecedor Aponta Venda e Valor
-
-### Já Está Implementado!
-
-O fluxo completo existe:
-
-1. **Fornecedor desbloqueia lead** → Usa 1 crédito
-2. **Aparece botão "Fechei negócio"** no card da cotação
-3. **Modal `DealClosedModal`** abre para informar valor
-4. **Dados salvos em `leads_access`**:
-   - `deal_closed = true`
-   - `deal_value = valor informado`
-   - `deal_closed_at = timestamp`
-
-### Código Existente (VendorDashboard.tsx linhas 545-556):
-```tsx
-{!dealClosed && leadAccess && (
-  <Button
-    variant="outline"
-    size="sm"
-    onClick={() => setDealModal({
-      leadAccessId: leadAccess.id,
-      clientName: quote.profiles?.full_name || 'Cliente',
-    })}
-  >
-    <Handshake className="mr-2 h-4 w-4" />
-    Fechei negócio
-  </Button>
-)}
+```
+Cliente envia Cotação
+       ↓
+Insert em 'quotes' (sucesso)
+       ↓
+Chamar notify-vendor-quote
+       ↓
+Function recupera dados
+       ↓
+Envia e-mail via Resend
+       ↓
+Toast "Cotação enviada!"
 ```
 
-### Para Marketing/ROI
-Os dados de `deal_value` podem ser consultados para relatórios:
-```sql
-SELECT SUM(deal_value) as total_vendas, COUNT(*) as negocios_fechados
-FROM leads_access WHERE deal_closed = true;
-```
+## 4. Considerações Técnicas
 
----
+- **Segurança:** RLS garante que vendor só recebe e-mail da sua própria cotação
+- **Resiliência:** Se e-mail falhar, cotação já está criada (sucesso parcial aceitável)
+- **Domínio:** Usa `onboarding@resend.dev` inicialmente, fácil mudar depois no código da function
+- **Deploy:** Automático após criação do arquivo
 
-## Estimativa de Créditos
+## 5. Próximas Etapas
 
-| Tarefa | Créditos |
-|--------|----------|
-| Corrigir CORS do add-bonus-credits | 1 |
-| Configurar STRIPE_SECRET_KEY | 0 (apenas configuração) |
-| Criar notificação por e-mail (se aprovado) | 2-3 |
-| **Total imediato** | **1 crédito** |
-| **Total com notificações** | **3-4 créditos** |
+1. ✅ Configurar `RESEND_API_KEY`
+2. ✅ Criar `notify-vendor-quote/index.ts`
+3. ✅ Atualizar `QuoteModal.tsx`
+4. ✅ Teste: Enviar cotação e validar recebimento de e-mail
 
----
-
-## Próximos Passos Recomendados
-
-1. **Aprovar este plano** para corrigir a função de créditos bônus
-2. **Configurar STRIPE_SECRET_KEY** via ferramenta de segredos
-3. **Decidir sobre notificações por e-mail**:
-   - Precisa configurar Resend (RESEND_API_KEY)
-   - Posso criar a estrutura após os passos 1-2
-
-Deseja que eu prossiga com a correção do item 1 e a configuração do Stripe?
