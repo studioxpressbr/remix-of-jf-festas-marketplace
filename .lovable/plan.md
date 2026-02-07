@@ -1,89 +1,99 @@
 
-# Plano: Implementar Login com Google
+# Plano: Exibir Cupons Ativos no Perfil do Fornecedor
 
 ## Resumo
-Adicionar a opção de login com Google ao modal de autenticação existente, mantendo também a opção de email/senha. O Lovable Cloud já oferece Google OAuth gerenciado, então não será necessário configurar credenciais no Google Cloud Console.
+Adicionar uma seção de cupons ativos na página de perfil do fornecedor (`VendorProfile.tsx`), visível para clientes e usuários não cadastrados. O cupom exibirá:
+- Código do cupom
+- Valor do desconto (percentual ou fixo)
+- Data de validade
+- Pedido mínimo (novo campo a ser adicionado)
 
 ---
 
 ## O que será feito
 
-### 1. Configurar o provedor Google OAuth
-- Usar a ferramenta integrada do Lovable Cloud para ativar o Google como provedor de autenticação
-- Isso gerará automaticamente o módulo necessário em `src/integrations/lovable`
+### 1. Adicionar campo "Pedido Mínimo" na tabela de cupons
+- Criar nova coluna `min_order_value` (numeric, nullable) na tabela `coupons`
+- Valor padrão: null (sem valor mínimo)
 
-### 2. Atualizar o Modal de Autenticação
-- Adicionar botão "Continuar com Google" no `AuthModal.tsx`
-- Posicionar o botão acima do formulário de email/senha
-- Adicionar um separador visual "ou" entre as opções
-- Manter toda a lógica existente de email/senha funcionando
+### 2. Atualizar o formulário de criação de cupons
+- Adicionar campo "Pedido Mínimo (R$)" no `VendorCouponModal.tsx`
+- Campo opcional - deixar em branco significa que não há valor mínimo
 
-### 3. Tratar o fluxo de novos usuários via Google
-- Usuários que fizerem login com Google pela primeira vez terão um perfil criado automaticamente (já existe o trigger `handle_new_user`)
-- O nome virá do perfil do Google
-- Para fornecedores, será necessário completar o cadastro com WhatsApp posteriormente
+### 3. Criar componente para exibir cupons no perfil público
+- Novo componente: `VendorProfileCoupons.tsx`
+- Exibe cupons ativos e não expirados do fornecedor
+- Layout visual atrativo tipo "cartão de cupom" com:
+  - Código em destaque
+  - Valor do desconto
+  - Data de validade
+  - Pedido mínimo (se houver)
+
+### 4. Integrar na página VendorProfile
+- Adicionar seção de cupons após a descrição do fornecedor
+- Buscar cupons ativos via `vendors_public` ou query direta (RLS já permite visualização pública de cupons ativos)
 
 ---
 
 ## Detalhes Técnicos
 
-### Arquivos a serem modificados
-| Arquivo | Alteração |
-|---------|-----------|
-| `src/components/auth/AuthModal.tsx` | Adicionar botão Google e função de login social |
-| `src/integrations/lovable/` | Gerado automaticamente pela ferramenta |
+### Alteração no Banco de Dados
 
-### Fluxo de autenticação com Google
-
-```text
-Usuário clica "Continuar com Google"
-         |
-         v
-Redirecionado para tela de login Google
-         |
-         v
-Autoriza o acesso
-         |
-         v
-Retorna ao app com sessão ativa
-         |
-         v
-Trigger cria perfil automaticamente (se novo usuário)
-         |
-         v
-Usuário logado e redirecionado
+```sql
+ALTER TABLE coupons
+ADD COLUMN min_order_value numeric DEFAULT NULL;
 ```
 
-### Código do botão Google (exemplo)
+### Arquivos a serem modificados
+
+| Arquivo | Alteração |
+|---------|-----------|
+| `supabase/migrations/` | Adicionar coluna `min_order_value` |
+| `src/components/vendor/VendorCouponModal.tsx` | Adicionar campo de pedido mínimo |
+| `src/components/vendor/VendorCouponsSection.tsx` | Exibir pedido mínimo nos cupons |
+| `src/components/vendor/VendorProfileCoupons.tsx` | **Novo** - Componente de exibição pública |
+| `src/pages/VendorProfile.tsx` | Integrar seção de cupons |
+
+### Layout do Cupom Público
+
+```text
++----------------------------------------+
+|  🎟️  FEST10                            |
+|  --------------------------------       |
+|  📦 10% de desconto                     |
+|  📅 Válido até 11/02                    |
+|  💰 Pedido mínimo: R$ 150,00            |
++----------------------------------------+
+```
+
+### Query para buscar cupons públicos
 
 ```typescript
-import { lovable } from "@/integrations/lovable/index";
+const { data: coupons } = await supabase
+  .from('coupons')
+  .select('code, discount_type, discount_value, expires_at, min_order_value')
+  .eq('vendor_id', vendorId) // vendor.id da tabela vendors
+  .eq('is_active', true)
+  .gt('expires_at', new Date().toISOString())
+  .order('created_at', { ascending: false });
+```
 
-const handleGoogleLogin = async () => {
-  setLoading(true);
-  const { error } = await lovable.auth.signInWithOAuth("google", {
-    redirect_uri: window.location.origin,
-  });
-  if (error) {
-    toast({
-      title: 'Erro',
-      description: error.message,
-      variant: 'destructive',
-    });
-  }
-  setLoading(false);
-};
+A RLS já permite que qualquer usuário visualize cupons ativos:
+```sql
+Policy: "Anyone can view active coupons"
+Using: ((is_active = true) AND (expires_at > now()))
 ```
 
 ---
 
 ## Considerações
 
-- **Sem configuração manual**: O Google OAuth gerenciado do Lovable Cloud funciona automaticamente
-- **WhatsApp obrigatório para fornecedores**: Usuários que fizerem login com Google e forem fornecedores precisarão completar o cadastro com WhatsApp na página de onboarding
-- **Contas existentes**: Se um usuário já tiver conta com email/senha e tentar fazer login com Google usando o mesmo email, as contas serão vinculadas automaticamente
+- **Segurança**: A RLS já configurada permite visualização pública de cupons ativos
+- **Performance**: Query leve, apenas campos necessários selecionados
+- **UX**: Cupons exibidos apenas se existirem (seção oculta se não houver cupons)
+- **Responsividade**: Layout adaptado para mobile e desktop
 
 ---
 
 ## Resultado Esperado
-O modal de login terá um botão "Continuar com Google" que permite autenticação rápida com um clique, mantendo a opção tradicional de email/senha para quem preferir.
+Clientes e visitantes verão os cupons ativos do fornecedor na página de perfil, com todas as informações necessárias para usar o desconto: código, valor, validade e pedido mínimo.
