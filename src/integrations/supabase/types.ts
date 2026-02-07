@@ -93,6 +93,7 @@ export type Database = {
           id: string
           is_active: boolean
           max_uses: number | null
+          min_order_value: number | null
           vendor_id: string
         }
         Insert: {
@@ -105,6 +106,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           max_uses?: number | null
+          min_order_value?: number | null
           vendor_id: string
         }
         Update: {
@@ -117,6 +119,7 @@ export type Database = {
           id?: string
           is_active?: boolean
           max_uses?: number | null
+          min_order_value?: number | null
           vendor_id?: string
         }
         Relationships: [

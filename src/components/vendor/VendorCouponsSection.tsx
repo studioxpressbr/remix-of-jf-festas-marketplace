@@ -28,6 +28,7 @@ interface Coupon {
   max_uses: number | null;
   current_uses: number;
   is_active: boolean;
+  min_order_value: number | null;
 }
 
 interface VendorCouponsSectionProps {
@@ -149,6 +150,11 @@ export function VendorCouponsSection({ vendorId }: VendorCouponsSectionProps) {
                     {coupon.max_uses && (
                       <span className="text-xs text-muted-foreground">
                         ({coupon.current_uses}/{coupon.max_uses} usos)
+                      </span>
+                    )}
+                    {coupon.min_order_value && (
+                      <span className="text-xs text-muted-foreground">
+                        | Mín: R$ {coupon.min_order_value.toFixed(2)}
                       </span>
                     )}
                   </div>

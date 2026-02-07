@@ -4,6 +4,7 @@ import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { useAdminRole } from '@/hooks/useAdminRole';
 import { Header } from '@/components/layout/Header';
 import { QuoteModal } from '@/components/vendor/QuoteModal';
+import { VendorProfileCoupons } from '@/components/vendor/VendorProfileCoupons';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AdminVendorEditModal } from '@/components/admin/AdminVendorEditModal';
 import { RejectVendorModal } from '@/components/admin/RejectVendorModal';
@@ -441,6 +442,9 @@ function VendorProfileContent() {
               <p className="text-muted-foreground">{vendor.description}</p>
             </div>
           )}
+
+          {/* Coupons Section - visible to everyone */}
+          <VendorProfileCoupons vendorId={vendor.id} />
         </div>
       </main>
 
