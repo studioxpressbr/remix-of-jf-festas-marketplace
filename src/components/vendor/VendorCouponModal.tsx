@@ -29,6 +29,7 @@ const couponSchema = z.object({
   discount_type: z.enum(['percentage', 'fixed']),
   discount_value: z.number().positive('Valor deve ser maior que zero'),
   max_uses: z.number().int().positive().optional().nullable(),
+  min_order_value: z.number().positive().optional().nullable(),
 });
 
 type CouponFormData = z.infer<typeof couponSchema>;
@@ -63,6 +64,7 @@ export function VendorCouponModal({
       discount_type: 'percentage',
       discount_value: undefined,
       max_uses: null,
+      min_order_value: null,
     },
   });
 
@@ -77,6 +79,7 @@ export function VendorCouponModal({
         discount_type: data.discount_type,
         discount_value: data.discount_value,
         max_uses: data.max_uses || null,
+        min_order_value: data.min_order_value || null,
       });
 
       if (error) {
@@ -183,6 +186,21 @@ export function VendorCouponModal({
             />
             <p className="text-xs text-muted-foreground">
               Deixe em branco para uso ilimitado
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="min_order_value">Pedido Mínimo (R$) (opcional)</Label>
+            <Input
+              id="min_order_value"
+              type="number"
+              step="0.01"
+              min="0"
+              placeholder="Sem valor mínimo"
+              {...register('min_order_value', { valueAsNumber: true })}
+            />
+            <p className="text-xs text-muted-foreground">
+              Deixe em branco se não houver valor mínimo
             </p>
           </div>
 
