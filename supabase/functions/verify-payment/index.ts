@@ -8,7 +8,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 const getCorsHeaders = (origin: string | null) => {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed.replace('https://', 'https://')) || origin.includes('lovable.app'))
+  const allowedOrigin = origin && (origin.includes('lovable.app') || origin.includes('lovableproject.com'))
     ? origin
     : ALLOWED_ORIGINS[0];
   
@@ -89,19 +89,33 @@ serve(async (req) => {
 
       if (!existingAccess) {
         // Create lead access record
-        const { error: insertError } = await supabaseClient
+        const { data: insertedAccess, error: insertError } = await supabaseClient
           .from('leads_access')
           .insert({
             quote_id: quoteId,
             vendor_id: user.id,
             payment_status: 'paid',
-            transaction_id: session.payment_intent as string,
             unlocked_at: new Date().toISOString(),
-          });
+          })
+          .select('id')
+          .single();
 
         if (insertError) {
           logStep("Error inserting lead access", { error: insertError.message });
           throw new Error(`Failed to record lead access: ${insertError.message}`);
+        }
+
+        // Record payment transaction in dedicated table
+        if (insertedAccess) {
+          await supabaseClient
+            .from('payment_transactions')
+            .insert({
+              leads_access_id: insertedAccess.id,
+              stripe_session_id: sessionId,
+              transaction_id: session.payment_intent as string,
+              amount_cents: session.amount_total,
+              currency: session.currency,
+            });
         }
 
         logStep("Lead access granted", { quoteId, vendorId: user.id });

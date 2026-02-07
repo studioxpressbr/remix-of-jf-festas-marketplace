@@ -8,7 +8,7 @@ const ALLOWED_ORIGINS = [
 ];
 
 const getCorsHeaders = (origin: string | null) => {
-  const allowedOrigin = origin && ALLOWED_ORIGINS.some(allowed => origin.startsWith(allowed.replace('https://', 'https://')) || origin.includes('lovable.app'))
+  const allowedOrigin = origin && (origin.includes('lovable.app') || origin.includes('lovableproject.com'))
     ? origin
     : ALLOWED_ORIGINS[0];
   
