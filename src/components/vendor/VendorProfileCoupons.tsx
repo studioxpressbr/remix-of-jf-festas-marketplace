@@ -61,36 +61,43 @@ export function VendorProfileCoupons({ vendorId }: VendorProfileCouponsProps) {
   }
 
   return (
-    <div className="mt-8">
-      <h2 className="mb-4 flex items-center gap-2 font-display text-xl font-semibold">
-        <Tag className="h-5 w-5 text-primary" />
-        Cupons de Desconto
-      </h2>
+    <div className="mt-8 rounded-2xl border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/10 p-6 shadow-lg">
+      <div className="mb-5 flex items-center gap-3">
+        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+          <Tag className="h-5 w-5 text-primary" />
+        </div>
+        <div>
+          <h2 className="font-display text-xl font-bold">🎉 Cupons de Desconto</h2>
+          <p className="text-sm text-muted-foreground">Aproveite estas ofertas especiais!</p>
+        </div>
+      </div>
       <div className="grid gap-4 sm:grid-cols-2">
         {coupons.map((coupon) => (
           <div
             key={coupon.id}
-            className="relative overflow-hidden rounded-xl border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 p-4"
+            className="group relative overflow-hidden rounded-xl border-2 border-dashed border-primary/40 bg-gradient-to-br from-primary/10 to-accent/20 p-5 transition-all hover:border-primary/60 hover:shadow-md"
           >
             {/* Decorative circles */}
             <div className="absolute -left-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-background" />
             <div className="absolute -right-3 top-1/2 h-6 w-6 -translate-y-1/2 rounded-full bg-background" />
 
-            <div className="text-center">
+            {/* Shine effect */}
+            <div className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-white/10 to-transparent transition-transform duration-700 group-hover:translate-x-full" />
+
+            <div className="relative text-center">
               <Badge 
-                variant="secondary" 
-                className="mb-3 font-mono text-lg tracking-wider"
+                className="mb-3 border-primary/30 bg-primary/10 font-mono text-lg tracking-widest text-primary"
               >
                 {coupon.code}
               </Badge>
               
-              <p className="text-2xl font-bold text-primary">
+              <p className="text-3xl font-extrabold text-primary">
                 {formatDiscount(coupon.discount_type, coupon.discount_value)}
               </p>
               
-              <div className="mt-3 space-y-1 text-sm text-muted-foreground">
+              <div className="mt-3 space-y-1.5 text-sm text-muted-foreground">
                 <p className="flex items-center justify-center gap-1.5">
-                  <Calendar className="h-4 w-4" />
+                  <Calendar className="h-4 w-4 text-primary/60" />
                   Válido até{' '}
                   {format(new Date(coupon.expires_at), "dd 'de' MMMM", {
                     locale: ptBR,
@@ -99,7 +106,7 @@ export function VendorProfileCoupons({ vendorId }: VendorProfileCouponsProps) {
                 
                 {coupon.min_order_value && (
                   <p className="flex items-center justify-center gap-1.5">
-                    <Banknote className="h-4 w-4" />
+                    <Banknote className="h-4 w-4 text-primary/60" />
                     Pedido mínimo: R$ {coupon.min_order_value.toFixed(2)}
                   </p>
                 )}
