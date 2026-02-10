@@ -57,7 +57,9 @@ import {
   Gift,
   Send,
   Tag,
+  DollarSign,
 } from 'lucide-react';
+import { DealsReportSection, type ClosedDeal } from '@/components/admin/DealsReportSection';
 
 interface PendingVendor {
   id: string;
@@ -97,6 +99,7 @@ function AdminContent() {
 
   const [pendingVendors, setPendingVendors] = useState<PendingVendor[]>([]);
   const [allProfiles, setAllProfiles] = useState<ProfileWithStats[]>([]);
+  const [closedDeals, setClosedDeals] = useState<ClosedDeal[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
 
@@ -221,6 +224,31 @@ function AdminContent() {
       );
 
       setAllProfiles(profilesWithStats);
+    }
+
+    // Fetch closed deals for report
+    const { data: dealsData } = await supabase
+      .from('leads_access')
+      .select('vendor_id, deal_value, deal_closed_at, quote_id, profiles!leads_access_vendor_id_fkey(full_name, email)')
+      .eq('deal_closed', true);
+
+    if (dealsData) {
+      setClosedDeals(
+        (dealsData as unknown as Array<{
+          vendor_id: string;
+          deal_value: number | null;
+          deal_closed_at: string | null;
+          quote_id: string;
+          profiles: { full_name: string; email: string | null } | null;
+        }>).map((d) => ({
+          vendor_id: d.vendor_id,
+          vendor_name: d.profiles?.full_name ?? 'Desconhecido',
+          vendor_email: d.profiles?.email ?? null,
+          deal_value: d.deal_value,
+          deal_closed_at: d.deal_closed_at,
+          quote_id: d.quote_id,
+        }))
+      );
     }
 
     setLoading(false);
@@ -501,6 +529,10 @@ function AdminContent() {
             <TabsTrigger value="messages" className="gap-2">
               <Send className="h-4 w-4" />
               Mensagens
+            </TabsTrigger>
+            <TabsTrigger value="deals" className="gap-2">
+              <DollarSign className="h-4 w-4" />
+              Negócios
             </TabsTrigger>
           </TabsList>
 
@@ -950,6 +982,13 @@ function AdminContent() {
 
           <TabsContent value="messages">
             <MessageTemplatesSection />
+          </TabsContent>
+
+          <TabsContent value="deals">
+            <DealsReportSection
+              deals={closedDeals}
+              onBonusClick={(vendor) => setBonusModal({ vendor })}
+            />
           </TabsContent>
         </Tabs>
       </main>
