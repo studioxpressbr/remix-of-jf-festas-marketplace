@@ -1,41 +1,66 @@
 
 
-## Plano: Traducao de erros + Cor do alerta de vermelho para laranja
+## Relatorio de Negocios Fechados no Painel Admin
 
-### Resumo de creditos
+### Objetivo
 
-| Acao | Creditos estimados |
+Adicionar uma nova aba "Negocios" no painel administrativo (`/gestao/admin`) com um relatorio completo de negocios fechados pelos fornecedores, permitindo ao admin:
+
+1. Visualizar ranking de fornecedores por volume de negocios fechados
+2. Filtrar por periodo (mes, intervalo personalizado)
+3. Ver totais agregados (quantidade de negocios e valor total por fornecedor)
+4. Bonificar fornecedores diretamente a partir do ranking (botao para dar creditos bonus)
+
+### Creditos estimados: ~1 credito
+
+### Detalhes tecnicos
+
+**1. Nova aba "Negocios" em `src/pages/Admin.tsx`**
+
+Adicionar uma quarta aba no `TabsList` com icone `DollarSign` e titulo "Negocios".
+
+**2. Busca de dados**
+
+Na funcao `fetchData()`, adicionar uma query ao `leads_access`:
+
+```sql
+SELECT la.vendor_id, la.deal_value, la.deal_closed_at, la.quote_id,
+       p.full_name, p.email
+FROM leads_access la
+JOIN profiles p ON p.id = la.vendor_id
+WHERE la.deal_closed = true
+```
+
+Os dados serao agrupados no frontend por `vendor_id` para calcular:
+- Total de negocios fechados (count)
+- Valor total (sum de `deal_value`)
+- Ticket medio
+
+**3. Interface do relatorio**
+
+- **Cards de resumo no topo**: Total de negocios no periodo, Valor total movimentado, Ticket medio
+- **Filtros de periodo**: Botoes rapidos (Este mes, Mes passado, Ultimos 90 dias) + seletor de datas customizado
+- **Tabela-ranking** ordenada por valor total decrescente:
+
+| # | Fornecedor | Negocios | Valor Total | Ticket Medio | Acoes |
+|---|---|---|---|---|---|
+| 1 | Maria Festere | 5 | R$ 2.400,00 | R$ 480,00 | [Dar Bonus] |
+| 2 | Joao Buffet | 3 | R$ 1.800,00 | R$ 600,00 | [Dar Bonus] |
+
+- **Botao "Dar Bonus"**: Abre o modal `AddBonusCreditsModal` ja existente, pre-selecionando o fornecedor
+
+**4. Componente separado `src/components/admin/DealsReportSection.tsx`**
+
+Para manter o `Admin.tsx` organizado, o conteudo da aba sera extraido para um componente proprio que recebe os dados e callbacks como props.
+
+**5. Nenhuma alteracao no banco de dados**
+
+Todos os dados necessarios ja existem na tabela `leads_access` com as colunas `deal_closed`, `deal_value` e `deal_closed_at`. A query utilizara joins com `profiles` para obter nomes dos fornecedores. O acesso e garantido pelas politicas RLS existentes (admin pode ver todos os dados).
+
+### Arquivos afetados
+
+| Arquivo | Acao |
 |---|---|
-| 1. Criar mapeamento de erros de autenticacao (pt-BR) | 1 |
-| 2. Mudar cor do alerta destrutivo de vermelho para laranja | 0 (incluso no mesmo credito) |
-| **Total** | **~1 credito** |
-
----
-
-### 1. Criar arquivo `src/lib/auth-errors.ts`
-
-Funcao `translateAuthError(message)` com mapeamento das mensagens mais comuns:
-
-- "Invalid login credentials" -> "Email ou senha incorretos."
-- "Email not confirmed" -> "Seu email ainda nao foi confirmado. Verifique sua caixa de entrada."
-- "User already registered" -> "Este email ja esta cadastrado."
-- "Password should be at least 6 characters" -> "A senha deve ter pelo menos 6 caracteres."
-- "Email rate limit exceeded" -> "Muitas tentativas. Aguarde alguns minutos."
-- "For security purposes, you can only request this after" -> "Por seguranca, aguarde alguns segundos antes de tentar novamente."
-- "New password should be different from the old password" -> "A nova senha deve ser diferente da senha atual."
-- "Unable to validate email address: invalid format" -> "Formato de email invalido."
-
-### 2. Aplicar traducao nos componentes
-
-- `src/components/auth/AuthModal.tsx` - envolver `error.message` com `translateAuthError()` nos 3 blocos catch.
-- `src/pages/ResetPassword.tsx` - aplicar no bloco catch do `handleSubmit`.
-
-### 3. Mudar cor do alerta destrutivo de vermelho para laranja
-
-Alterar as variaveis CSS `--destructive` em `src/index.css`:
-
-- **Tema claro:** de `0 84% 60%` (vermelho) para `25 95% 53%` (laranja)
-- **Tema escuro:** de `0 62% 50%` para `25 90% 48%`
-
-Tambem atualizar as referencias a cores vermelhas no componente `ToastClose` em `src/components/ui/toast.tsx`, trocando `red-300`, `red-50`, `red-400`, `red-600` por equivalentes em laranja (`orange-300`, `orange-50`, `orange-400`, `orange-600`).
+| `src/components/admin/DealsReportSection.tsx` | Criar (novo componente) |
+| `src/pages/Admin.tsx` | Editar (adicionar aba + fetch de dados) |
 
