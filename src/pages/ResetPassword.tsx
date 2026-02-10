@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, ArrowLeft } from 'lucide-react';
 import { Header } from '@/components/layout/Header';
+import { translateAuthError } from '@/lib/auth-errors';
 
 export default function ResetPassword() {
   const [searchParams] = useSearchParams();
@@ -90,7 +91,7 @@ export default function ResetPassword() {
     } catch (error: any) {
       toast({
         title: 'Erro',
-        description: error.message || 'Não foi possível atualizar a senha.',
+        description: translateAuthError(error.message) || 'Não foi possível atualizar a senha.',
         variant: 'destructive',
       });
     } finally {
