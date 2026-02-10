@@ -1,99 +1,41 @@
 
-# Plano: Exibir Cupons Ativos no Perfil do Fornecedor
 
-## Resumo
-Adicionar uma seção de cupons ativos na página de perfil do fornecedor (`VendorProfile.tsx`), visível para clientes e usuários não cadastrados. O cupom exibirá:
-- Código do cupom
-- Valor do desconto (percentual ou fixo)
-- Data de validade
-- Pedido mínimo (novo campo a ser adicionado)
+## Plano: Traducao de erros + Cor do alerta de vermelho para laranja
 
----
+### Resumo de creditos
 
-## O que será feito
-
-### 1. Adicionar campo "Pedido Mínimo" na tabela de cupons
-- Criar nova coluna `min_order_value` (numeric, nullable) na tabela `coupons`
-- Valor padrão: null (sem valor mínimo)
-
-### 2. Atualizar o formulário de criação de cupons
-- Adicionar campo "Pedido Mínimo (R$)" no `VendorCouponModal.tsx`
-- Campo opcional - deixar em branco significa que não há valor mínimo
-
-### 3. Criar componente para exibir cupons no perfil público
-- Novo componente: `VendorProfileCoupons.tsx`
-- Exibe cupons ativos e não expirados do fornecedor
-- Layout visual atrativo tipo "cartão de cupom" com:
-  - Código em destaque
-  - Valor do desconto
-  - Data de validade
-  - Pedido mínimo (se houver)
-
-### 4. Integrar na página VendorProfile
-- Adicionar seção de cupons após a descrição do fornecedor
-- Buscar cupons ativos via `vendors_public` ou query direta (RLS já permite visualização pública de cupons ativos)
+| Acao | Creditos estimados |
+|---|---|
+| 1. Criar mapeamento de erros de autenticacao (pt-BR) | 1 |
+| 2. Mudar cor do alerta destrutivo de vermelho para laranja | 0 (incluso no mesmo credito) |
+| **Total** | **~1 credito** |
 
 ---
 
-## Detalhes Técnicos
+### 1. Criar arquivo `src/lib/auth-errors.ts`
 
-### Alteração no Banco de Dados
+Funcao `translateAuthError(message)` com mapeamento das mensagens mais comuns:
 
-```sql
-ALTER TABLE coupons
-ADD COLUMN min_order_value numeric DEFAULT NULL;
-```
+- "Invalid login credentials" -> "Email ou senha incorretos."
+- "Email not confirmed" -> "Seu email ainda nao foi confirmado. Verifique sua caixa de entrada."
+- "User already registered" -> "Este email ja esta cadastrado."
+- "Password should be at least 6 characters" -> "A senha deve ter pelo menos 6 caracteres."
+- "Email rate limit exceeded" -> "Muitas tentativas. Aguarde alguns minutos."
+- "For security purposes, you can only request this after" -> "Por seguranca, aguarde alguns segundos antes de tentar novamente."
+- "New password should be different from the old password" -> "A nova senha deve ser diferente da senha atual."
+- "Unable to validate email address: invalid format" -> "Formato de email invalido."
 
-### Arquivos a serem modificados
+### 2. Aplicar traducao nos componentes
 
-| Arquivo | Alteração |
-|---------|-----------|
-| `supabase/migrations/` | Adicionar coluna `min_order_value` |
-| `src/components/vendor/VendorCouponModal.tsx` | Adicionar campo de pedido mínimo |
-| `src/components/vendor/VendorCouponsSection.tsx` | Exibir pedido mínimo nos cupons |
-| `src/components/vendor/VendorProfileCoupons.tsx` | **Novo** - Componente de exibição pública |
-| `src/pages/VendorProfile.tsx` | Integrar seção de cupons |
+- `src/components/auth/AuthModal.tsx` - envolver `error.message` com `translateAuthError()` nos 3 blocos catch.
+- `src/pages/ResetPassword.tsx` - aplicar no bloco catch do `handleSubmit`.
 
-### Layout do Cupom Público
+### 3. Mudar cor do alerta destrutivo de vermelho para laranja
 
-```text
-+----------------------------------------+
-|  🎟️  FEST10                            |
-|  --------------------------------       |
-|  📦 10% de desconto                     |
-|  📅 Válido até 11/02                    |
-|  💰 Pedido mínimo: R$ 150,00            |
-+----------------------------------------+
-```
+Alterar as variaveis CSS `--destructive` em `src/index.css`:
 
-### Query para buscar cupons públicos
+- **Tema claro:** de `0 84% 60%` (vermelho) para `25 95% 53%` (laranja)
+- **Tema escuro:** de `0 62% 50%` para `25 90% 48%`
 
-```typescript
-const { data: coupons } = await supabase
-  .from('coupons')
-  .select('code, discount_type, discount_value, expires_at, min_order_value')
-  .eq('vendor_id', vendorId) // vendor.id da tabela vendors
-  .eq('is_active', true)
-  .gt('expires_at', new Date().toISOString())
-  .order('created_at', { ascending: false });
-```
+Tambem atualizar as referencias a cores vermelhas no componente `ToastClose` em `src/components/ui/toast.tsx`, trocando `red-300`, `red-50`, `red-400`, `red-600` por equivalentes em laranja (`orange-300`, `orange-50`, `orange-400`, `orange-600`).
 
-A RLS já permite que qualquer usuário visualize cupons ativos:
-```sql
-Policy: "Anyone can view active coupons"
-Using: ((is_active = true) AND (expires_at > now()))
-```
-
----
-
-## Considerações
-
-- **Segurança**: A RLS já configurada permite visualização pública de cupons ativos
-- **Performance**: Query leve, apenas campos necessários selecionados
-- **UX**: Cupons exibidos apenas se existirem (seção oculta se não houver cupons)
-- **Responsividade**: Layout adaptado para mobile e desktop
-
----
-
-## Resultado Esperado
-Clientes e visitantes verão os cupons ativos do fornecedor na página de perfil, com todas as informações necessárias para usar o desconto: código, valor, validade e pedido mínimo.
