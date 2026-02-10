@@ -37,7 +37,7 @@
     --accent: 180 50% 42%;
     --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84% 60%;
+    --destructive: 25 95% 53%;
     --destructive-foreground: 0 0% 100%;
 
     --border: 200 10% 90%;
@@ -104,7 +104,7 @@
     --muted-foreground: 200 10% 60%;
     --accent: 180 45% 40%;
     --accent-foreground: 0 0% 100%;
-    --destructive: 0 62% 50%;
+    --destructive: 25 90% 48%;
     --destructive-foreground: 0 0% 100%;
     --border: 200 10% 25%;
     --input: 200 10% 25%;

@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
 import { SUBSCRIPTION_PRICE } from '@/lib/constants';
 import { Loader2 } from 'lucide-react';
+import { translateAuthError } from '@/lib/auth-errors';
 
 interface AuthModalProps {
   open: boolean;
@@ -60,7 +61,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
       if (error) {
         toast({
           title: 'Erro',
-          description: error.message || 'Não foi possível fazer login com Google.',
+          description: translateAuthError(error.message) || 'Não foi possível fazer login com Google.',
           variant: 'destructive',
         });
         setGoogleLoading(false);
@@ -69,7 +70,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
     } catch (error: any) {
       toast({
         title: 'Erro',
-        description: error.message || 'Não foi possível fazer login com Google.',
+        description: translateAuthError(error.message) || 'Não foi possível fazer login com Google.',
         variant: 'destructive',
       });
       setGoogleLoading(false);
@@ -121,7 +122,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
     } catch (error: any) {
       toast({
         title: 'Erro',
-        description: error.message || 'Ocorreu um erro. Tente novamente.',
+        description: translateAuthError(error.message) || 'Ocorreu um erro. Tente novamente.',
         variant: 'destructive',
       });
     } finally {
@@ -148,7 +149,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
     } catch (error: any) {
       toast({
         title: 'Erro',
-        description: error.message || 'Não foi possível enviar o email.',
+        description: translateAuthError(error.message) || 'Não foi possível enviar o email.',
         variant: 'destructive',
       });
     } finally {
