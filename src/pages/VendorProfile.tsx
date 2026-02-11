@@ -5,6 +5,7 @@ import { useAdminRole } from '@/hooks/useAdminRole';
 import { Header } from '@/components/layout/Header';
 import { QuoteModal } from '@/components/vendor/QuoteModal';
 import { VendorProfileCoupons } from '@/components/vendor/VendorProfileCoupons';
+import { StarRating } from '@/components/ui/star-rating';
 import { AuthModal } from '@/components/auth/AuthModal';
 import { AdminVendorEditModal } from '@/components/admin/AdminVendorEditModal';
 import { RejectVendorModal } from '@/components/admin/RejectVendorModal';
@@ -13,9 +14,11 @@ import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { supabase } from '@/integrations/supabase/client';
 import { VENDOR_CATEGORIES, CATEGORY_COLORS } from '@/lib/constants';
-import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2, Pencil, XCircle, Power, PowerOff, Crown } from 'lucide-react';
+import { MapPin, ArrowLeft, MessageCircle, Phone, Mail, CheckCircle, Loader2, Pencil, XCircle, Power, PowerOff, Crown, Star } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { format } from 'date-fns';
+import { ptBR } from 'date-fns/locale';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import {
   Carousel,
@@ -45,6 +48,14 @@ interface VendorData {
   } | null;
 }
 
+interface ReviewData {
+  id: string;
+  rating: number;
+  comment: string | null;
+  created_at: string;
+  reviewer_name: string;
+}
+
 function VendorProfileContent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -58,6 +69,8 @@ function VendorProfileContent() {
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [rejectModalOpen, setRejectModalOpen] = useState(false);
+  const [reviews, setReviews] = useState<ReviewData[]>([]);
+  const [avgRating, setAvgRating] = useState(0);
 
   const handleApproveVendor = async () => {
     if (!vendor || !user) return;
@@ -159,6 +172,27 @@ function VendorProfileContent() {
 
     setVendor(data as unknown as VendorData);
     setLoading(false);
+
+    // Fetch reviews for this vendor
+    const profileId = (data as any).profile_id;
+    const { data: reviewsData } = await supabase
+      .from('reviews')
+      .select('id, rating, comment, created_at, reviewer_id, profiles!reviews_reviewer_id_fkey(full_name)')
+      .eq('target_id', profileId)
+      .order('created_at', { ascending: false });
+
+    if (reviewsData && reviewsData.length > 0) {
+      const mapped = reviewsData.map((r: any) => ({
+        id: r.id,
+        rating: r.rating,
+        comment: r.comment,
+        created_at: r.created_at,
+        reviewer_name: r.profiles?.full_name?.split(' ')[0] || 'Cliente',
+      }));
+      setReviews(mapped);
+      const avg = mapped.reduce((sum: number, r: ReviewData) => sum + r.rating, 0) / mapped.length;
+      setAvgRating(avg);
+    }
   }, [id, navigate, isAdmin, adminLoading]);
 
   useEffect(() => {
@@ -445,6 +479,39 @@ function VendorProfileContent() {
 
           {/* Coupons Section - visible to everyone */}
           <VendorProfileCoupons vendorId={vendor.id} />
+
+          {/* Reviews Section */}
+          {reviews.length > 0 && (
+            <div className="mt-8">
+              <h2 className="mb-4 font-display text-xl font-semibold flex items-center gap-2">
+                <Star className="h-5 w-5 fill-amber-400 text-amber-400" />
+                Avaliações de Clientes
+              </h2>
+              <div className="mb-4 flex items-center gap-3">
+                <StarRating rating={avgRating} reviewCount={reviews.length} size="lg" />
+              </div>
+              <div className="space-y-4">
+                {reviews.map((review) => (
+                  <Card key={review.id}>
+                    <CardContent className="pt-4">
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{review.reviewer_name}</p>
+                          <StarRating rating={review.rating} showValue={false} size="sm" className="mt-1" />
+                        </div>
+                        <span className="text-xs text-muted-foreground shrink-0">
+                          {format(new Date(review.created_at), "dd 'de' MMM, yyyy", { locale: ptBR })}
+                        </span>
+                      </div>
+                      {review.comment && (
+                        <p className="mt-2 text-sm text-muted-foreground">{review.comment}</p>
+                      )}
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </main>
 

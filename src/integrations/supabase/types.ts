@@ -155,6 +155,7 @@ export type Database = {
           id: string
           payment_status: Database["public"]["Enums"]["payment_status"]
           quote_id: string
+          review_requested_at: string | null
           unlocked_at: string | null
           vendor_id: string
         }
@@ -166,6 +167,7 @@ export type Database = {
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           quote_id: string
+          review_requested_at?: string | null
           unlocked_at?: string | null
           vendor_id: string
         }
@@ -177,6 +179,7 @@ export type Database = {
           id?: string
           payment_status?: Database["public"]["Enums"]["payment_status"]
           quote_id?: string
+          review_requested_at?: string | null
           unlocked_at?: string | null
           vendor_id?: string
         }
