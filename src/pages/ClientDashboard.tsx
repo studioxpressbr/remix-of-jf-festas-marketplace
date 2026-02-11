@@ -4,6 +4,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { ClientEditProfileModal } from '@/components/client/ClientEditProfileModal';
+import { ClientReviewVendorModal } from '@/components/client/ClientReviewVendorModal';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -17,9 +18,17 @@ import {
   FileText,
   Edit,
   Clock,
+  Star,
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+
+interface LeadAccess {
+  quote_id: string;
+  deal_closed: boolean;
+  deal_value: number | null;
+  vendor_id: string;
+}
 
 interface Quote {
   id: string;
@@ -28,11 +37,14 @@ interface Quote {
   description: string | null;
   status: 'open' | 'unlocked' | 'completed' | 'cancelled';
   created_at: string;
+  vendor_id: string;
   vendor: {
     business_name: string;
     category: string;
     images: string[] | null;
   } | null;
+  leadAccess?: LeadAccess | null;
+  hasReview?: boolean;
 }
 
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
@@ -56,6 +68,8 @@ export default function ClientDashboard() {
   const [quotes, setQuotes] = useState<Quote[]>([]);
   const [loadingQuotes, setLoadingQuotes] = useState(true);
   const [editModalOpen, setEditModalOpen] = useState(false);
+  const [reviewModalOpen, setReviewModalOpen] = useState(false);
+  const [selectedQuoteForReview, setSelectedQuoteForReview] = useState<Quote | null>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -93,23 +107,39 @@ export default function ClientDashboard() {
 
       if (error) throw error;
 
-      // Fetch vendor details for each quote
-      const quotesWithVendors = await Promise.all(
+      // Fetch vendor details, leads_access, and reviews in parallel for each quote
+      const quotesWithDetails = await Promise.all(
         (data || []).map(async (quote) => {
-          const { data: vendorData } = await supabase
-            .from('vendors')
-            .select('business_name, category, images')
-            .eq('profile_id', quote.vendor_id)
-            .single();
+          const [vendorResult, leadResult, reviewResult] = await Promise.all([
+            supabase
+              .from('vendors')
+              .select('business_name, category, images')
+              .eq('profile_id', quote.vendor_id)
+              .single(),
+            supabase
+              .from('leads_access')
+              .select('quote_id, deal_closed, deal_value, vendor_id')
+              .eq('quote_id', quote.id)
+              .eq('deal_closed', true)
+              .maybeSingle(),
+            supabase
+              .from('reviews')
+              .select('id')
+              .eq('quote_id', quote.id)
+              .eq('reviewer_id', user.id)
+              .maybeSingle(),
+          ]);
 
           return {
             ...quote,
-            vendor: vendorData,
+            vendor: vendorResult.data,
+            leadAccess: leadResult.data as LeadAccess | null,
+            hasReview: !!reviewResult.data,
           };
         })
       );
 
-      setQuotes(quotesWithVendors);
+      setQuotes(quotesWithDetails);
     } catch (error) {
       console.error('Error fetching quotes:', error);
     } finally {
@@ -264,9 +294,28 @@ export default function ClientDashboard() {
                           </span>
                         </div>
                       </div>
-                      <Badge variant={statusLabels[quote.status]?.variant || 'secondary'}>
-                        {statusLabels[quote.status]?.label || quote.status}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                        {/* Review button */}
+                        {quote.leadAccess?.deal_closed &&
+                          new Date(quote.event_date) < new Date() &&
+                          !quote.hasReview && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="gap-1"
+                              onClick={() => {
+                                setSelectedQuoteForReview(quote);
+                                setReviewModalOpen(true);
+                              }}
+                            >
+                              <Star className="h-3.5 w-3.5" />
+                              Avaliar
+                            </Button>
+                          )}
+                        <Badge variant={statusLabels[quote.status]?.variant || 'secondary'}>
+                          {statusLabels[quote.status]?.label || quote.status}
+                        </Badge>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -282,6 +331,20 @@ export default function ClientDashboard() {
           onOpenChange={setEditModalOpen}
           profile={profile}
           onSuccess={handleProfileUpdate}
+        />
+      )}
+
+      {selectedQuoteForReview && (
+        <ClientReviewVendorModal
+          open={reviewModalOpen}
+          onOpenChange={setReviewModalOpen}
+          quoteId={selectedQuoteForReview.id}
+          vendorProfileId={selectedQuoteForReview.vendor_id}
+          vendorName={selectedQuoteForReview.vendor?.business_name || 'Fornecedor'}
+          clientId={user!.id}
+          eventDate={selectedQuoteForReview.event_date}
+          dealValue={selectedQuoteForReview.leadAccess?.deal_value ?? null}
+          onSuccess={fetchQuotes}
         />
       )}
     </div>
