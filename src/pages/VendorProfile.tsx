@@ -182,12 +182,19 @@ function VendorProfileContent() {
       .order('created_at', { ascending: false });
 
     if (reviewsData && reviewsData.length > 0) {
+      const getInitials = (name: string | undefined | null): string => {
+        if (!name) return 'C.';
+        const parts = name.trim().split(/\s+/);
+        if (parts.length === 1) return parts[0][0].toUpperCase() + '.';
+        return parts[0][0].toUpperCase() + '. ' + parts[parts.length - 1][0].toUpperCase() + '.';
+      };
+
       const mapped = reviewsData.map((r: any) => ({
         id: r.id,
         rating: r.rating,
         comment: r.comment,
         created_at: r.created_at,
-        reviewer_name: r.profiles?.full_name?.split(' ')[0] || 'Cliente',
+        reviewer_name: getInitials(r.profiles?.full_name),
       }));
       setReviews(mapped);
       const avg = mapped.reduce((sum: number, r: ReviewData) => sum + r.rating, 0) / mapped.length;
