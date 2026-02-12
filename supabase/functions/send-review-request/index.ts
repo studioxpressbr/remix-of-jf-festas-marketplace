@@ -67,6 +67,9 @@ Deno.serve(async (req) => {
       const quote = lead.quotes as any;
       if (!quote) continue;
 
+      // Only request review if deal_value was informed
+      if (!lead.deal_value) continue;
+
       // Check event date has passed
       const eventDate = new Date(quote.event_date);
       if (eventDate >= today) continue;
