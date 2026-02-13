@@ -44,6 +44,7 @@ function SearchPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
+  const [initialLoad, setInitialLoad] = useState(true);
 
   // Fetch categories on mount - with fallback to constants
   useEffect(() => {
@@ -106,8 +107,9 @@ function SearchPage() {
 
   // Search function
   const searchVendors = useCallback(async () => {
-    setLoading(true);
-    
+    if (initialLoad) {
+      setLoading(true);
+    }
     let query = supabase
       .from('vendors_search' as any)
       .select('*');
@@ -147,6 +149,7 @@ function SearchPage() {
     const { data } = await query.order('created_at', { ascending: false });
     setVendors((data as unknown as Vendor[]) || []);
     setLoading(false);
+    setInitialLoad(false);
   }, [debouncedSearchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating]);
 
   // Auto-search when any filter changes
