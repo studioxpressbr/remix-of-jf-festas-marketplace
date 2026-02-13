@@ -1,107 +1,57 @@
 
+## Máscara Monetária Brasileira no Campo de Proposta
 
-## Funcionalidade: Cotacao com Proposta de Valor + Anexo de Contrato
+### Objetivo
+Adicionar uma máscara de entrada monetária brasileira (R$ 1.000,00) no campo de valor da proposta do fornecedor no componente `VendorProposalModal.tsx`.
 
-Esta funcionalidade permite que o fornecedor, ao enviar uma proposta para o cliente, inclua um valor, uma mensagem opcional e, opcionalmente, um arquivo de contrato (PDF ou documento).
+### Análise Atual
+- O campo atualmente aceita texto livre e processa valores na submissão com `parseFloat(value.replace(/[^\d.,]/g, '').replace(',', '.'))`
+- Não há utilitário centralizado de formatação monetária no projeto
+- Existem funções `formatCurrency()` em componentes específicos que usam `Intl.NumberFormat('pt-BR')`
 
----
+### Solução Proposta
 
-### Fluxo Completo
+#### Abordagem
+Implementar uma função de máscara monetária customizada que:
+1. Formata a entrada em tempo real conforme o usuário digita
+2. Segue o padrão brasileiro: R$ 1.000,00 (separador de milhar com ponto, decimal com vírgula)
+3. Permite apenas dígitos e vírgula como entrada
+4. Limita a 2 casas decimais
+5. Mostra o símbolo "R$" e formatação enquanto digita
 
-```text
-Cliente solicita cotacao (ja existe)
-        |
-Fornecedor desbloqueia lead (ja existe)
-        |
-Fornecedor envia proposta:
-  - Valor (R$) obrigatorio
-  - Mensagem opcional
-  - Contrato em anexo (PDF/DOC, opcional, max 10MB)
-        |
-Cliente recebe e visualiza proposta + download do contrato
-        |
-Cliente aceita ou recusa
-```
+#### Implementação
+Adicionar ao `VendorProposalModal.tsx`:
 
----
+1. **Função `formatMonetaryValue(value: string)`**:
+   - Remove caracteres não numéricos (exceto vírgula)
+   - Valida que só há um separador decimal
+   - Limita a 2 casas decimais
+   - Formata com separador de milhar (ponto) e decimal (vírgula)
+   - Exemplo: "1000" → "1.000,00", "1234567" → "1.234.567,00"
 
-### Alteracoes Necessarias
+2. **Handler `handleValueChange(e: React.ChangeEvent<HTMLInputElement>)`**:
+   - Chama `formatMonetaryValue()` para formatar a entrada
+   - Atualiza o estado `value` com o resultado formatado
 
-#### 1. Novo Bucket de Storage: `vendor-contracts`
+3. **Atualizar o Input**:
+   - Mudar placeholder de "0,00" para "0,00" (opcional, já correto)
+   - Adicionar `maxLength="20"` para evitar entradas muito longas
+   - Trocar `onChange` para usar o novo handler
 
-Bucket publico para armazenar os contratos enviados pelos fornecedores. Politica RLS permitindo upload por usuarios autenticados e leitura publica.
+#### Benefícios
+- UX melhorada: usuário vê imediatamente a formatação correta
+- Menos erros de entrada de valores
+- Consistente com padrões brasileiros
+- Sem dependência de bibliotecas externas
 
-#### 2. Migracao SQL
+#### Impacto
+- Mudanças localizadas apenas no `VendorProposalModal.tsx`
+- A lógica de parsing já existente (`handleSubmit`) continuará funcionando normalmente
+- Compatível com toda a stack atual do projeto
 
-Adicionar colunas na tabela `quotes`:
-
-- `proposed_value` (numeric, nullable) - valor proposto
-- `proposal_message` (text, nullable) - mensagem opcional
-- `proposed_at` (timestamptz, nullable) - data da proposta
-- `contract_url` (text, nullable) - URL do contrato anexado
-- `client_response` (text, nullable) - 'accepted' ou 'rejected'
-- `client_responded_at` (timestamptz, nullable) - data da resposta
-
-Atualizar RLS de `quotes`: fornecedores precisam de UPDATE nas colunas de proposta; clientes precisam de UPDATE para registrar resposta.
-
-#### 3. Componente: Modal de Proposta do Fornecedor
-
-Novo `VendorProposalModal.tsx`:
-- Campo de valor (R$) com mascara monetaria
-- Campo de mensagem (textarea, opcional)
-- Botao de upload de contrato (PDF/DOC/DOCX, max 10MB, opcional)
-- Preview do arquivo selecionado com opcao de remover
-- Upload vai para o bucket `vendor-contracts`
-- Ao salvar: atualiza `quotes` com valor, mensagem, URL do contrato e status `proposed`
-
-#### 4. Interface de Resposta do Cliente
-
-No `ClientDashboard.tsx`, secao de propostas recebidas:
-- Exibe valor proposto, mensagem, data
-- Link de download do contrato (se anexado)
-- Botoes "Aceitar" e "Recusar"
-- Aceitar: atualiza status para `completed`, `deal_closed = true`, `deal_value` automatico
-- Recusar: registra `client_response = 'rejected'`
-
-#### 5. Atualizacao dos Dashboards
-
-- **VendorDashboard**: botao "Enviar Proposta" para leads desbloqueados; badge "Proposta Enviada" com indicador de contrato anexado
-- **ClientDashboard**: secao destacada para propostas pendentes; historico de respostas
-
-#### 6. Notificacao (opcional)
-
-Edge function para notificar o cliente por e-mail quando recebe uma proposta.
-
----
-
-### Estimativa de Creditos
-
-| Item | Creditos |
-|------|----------|
-| Migracao SQL (colunas + enum + RLS + bucket) | 0.5 |
-| Modal de proposta com upload de contrato | 1.5 |
-| Interface de resposta do cliente | 1 |
-| Atualizacao dos dashboards + status | 1 |
-| Edge function de notificacao (opcional) | 0.5 |
-| **Total** | **3-5** |
-
----
-
-### Detalhes Tecnicos
-
-**Upload de contrato:**
-- Bucket `vendor-contracts` (publico, similar ao `vendor-images`)
-- Tipos aceitos: PDF, DOC, DOCX
-- Tamanho maximo: 10MB
-- Nome do arquivo gerado com timestamp para evitar colisoes
-- Padrao de upload identico ao usado em `ImageUpload.tsx` (Supabase Storage SDK)
-
-**Validacao:**
-- Valor proposto: numero positivo, obrigatorio
-- Contrato: validacao de tipo MIME (application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document)
-- Mensagem: max 500 caracteres
-
-**RLS adicional:**
-- Fornecedores podem fazer UPDATE em `quotes` apenas para colunas de proposta, quando `vendor_id = auth.uid()`
-- Clientes podem fazer UPDATE apenas em `client_response` e `client_responded_at`, quando `client_id = auth.uid()`
+#### Exemplos de Entrada/Saída
+- "1234567" → "1.234.567,00"
+- "100" → "100,00"
+- "1000,50" → "1.000,50"
+- "999999999,99" → "999.999.999,99"
 
