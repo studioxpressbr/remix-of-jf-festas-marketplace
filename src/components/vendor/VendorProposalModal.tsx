@@ -171,7 +171,7 @@ export function VendorProposalModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md overflow-hidden">
         <DialogHeader>
           <DialogTitle>Enviar Proposta para {clientName}</DialogTitle>
         </DialogHeader>
@@ -179,7 +179,7 @@ export function VendorProposalModal({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="proposal-value">Valor (R$) *</Label>
-            <div className="relative">
+            <div className="relative w-full overflow-hidden">
               <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
               <Input
                 id="proposal-value"
@@ -189,7 +189,7 @@ export function VendorProposalModal({
                 value={value}
                 onChange={handleValueChange}
                 maxLength={20}
-                className="pl-10"
+                className="pl-10 w-full"
               />
             </div>
           </div>

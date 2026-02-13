@@ -39,7 +39,8 @@ import {
   DollarSign,
   Send,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatBRL } from '@/lib/utils';
+import { StarRating } from '@/components/ui/star-rating';
 
 interface LeadAccess {
   id: string;
@@ -98,6 +99,12 @@ interface ClientReview {
   rating: number;
 }
 
+interface ClientRating {
+  client_id: string;
+  avg_rating: number;
+  review_count: number;
+}
+
 function DashboardContent() {
   const navigate = useNavigate();
   const { user, profile, loading: authLoading } = useAuthContext();
@@ -107,6 +114,7 @@ function DashboardContent() {
   const [creditBalance, setCreditBalance] = useState<number>(0);
   const [creditTransactions, setCreditTransactions] = useState<CreditTransaction[]>([]);
   const [clientReviews, setClientReviews] = useState<ClientReview[]>([]);
+  const [clientRatings, setClientRatings] = useState<ClientRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [unlocking, setUnlocking] = useState<string | null>(null);
   const [purchaseLoading, setPurchaseLoading] = useState(false);
@@ -179,6 +187,29 @@ function DashboardContent() {
 
     if (reviewsData) {
       setClientReviews(reviewsData);
+    }
+
+    // Fetch ratings received by clients (reviews where target_id = client_id)
+    if (quotesData && quotesData.length > 0) {
+      const clientIds = [...new Set(quotesData.map((q: any) => q.client_id))];
+      const { data: ratingsData } = await supabase
+        .from('reviews')
+        .select('target_id, rating')
+        .in('target_id', clientIds);
+
+      if (ratingsData && ratingsData.length > 0) {
+        const grouped = ratingsData.reduce((acc: Record<string, number[]>, r: any) => {
+          if (!acc[r.target_id]) acc[r.target_id] = [];
+          acc[r.target_id].push(r.rating);
+          return acc;
+        }, {});
+        const ratings: ClientRating[] = Object.entries(grouped).map(([client_id, vals]) => ({
+          client_id,
+          avg_rating: (vals as number[]).reduce((a, b) => a + b, 0) / (vals as number[]).length,
+          review_count: (vals as number[]).length,
+        }));
+        setClientRatings(ratings);
+      }
     }
 
     // Fetch credits
@@ -549,6 +580,14 @@ function DashboardContent() {
                             <span className={cn(!unlocked && 'blur-sm select-none')}>
                               {quote.profiles?.full_name || 'Cliente'}
                             </span>
+                            {unlocked && (() => {
+                              const cr = clientRatings.find(r => r.client_id === quote.client_id);
+                              return cr ? (
+                                <StarRating rating={cr.avg_rating} reviewCount={cr.review_count} size="sm" />
+                              ) : (
+                                <StarRating rating={0} reviewCount={0} size="sm" />
+                              );
+                            })()}
                           </div>
                           <div className="flex items-center gap-2">
                             <Phone className="h-4 w-4 text-muted-foreground" />
@@ -572,7 +611,7 @@ function DashboardContent() {
                             {dealClosed ? (
                               <Badge className="bg-primary text-primary-foreground border-0">
                                 <DollarSign className="mr-1 h-3 w-3" />
-                                R$ {dealValue?.toFixed(2)}
+                                {formatBRL(dealValue ?? 0)}
                               </Badge>
                             ) : (
                               <Badge className="bg-sage text-sage-foreground border-0">
