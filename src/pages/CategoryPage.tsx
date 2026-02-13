@@ -11,6 +11,7 @@ import { ArrowLeft } from 'lucide-react';
 interface Vendor {
   id: string;
   business_name: string;
+  slug?: string | null;
   category: string;
   description: string | null;
   neighborhood: string | null;
