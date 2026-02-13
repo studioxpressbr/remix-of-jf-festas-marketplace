@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DollarSign, FileText, Download, CheckCircle, XCircle, Loader2, MessageSquare } from 'lucide-react';
+import { formatBRL } from '@/lib/utils';
 
 interface ClientProposalCardProps {
   quoteId: string;
@@ -68,7 +69,7 @@ export function ClientProposalCard({
         title: response === 'accepted' ? 'Proposta aceita!' : 'Proposta recusada',
         description:
           response === 'accepted'
-            ? `Você aceitou a proposta de R$ ${proposedValue.toFixed(2)} de ${vendorName}.`
+            ? `Você aceitou a proposta de ${formatBRL(proposedValue)} de ${vendorName}.`
             : `Você recusou a proposta de ${vendorName}.`,
       });
 
@@ -93,7 +94,7 @@ export function ClientProposalCard({
         <div className="flex items-center gap-2">
           <DollarSign className="h-5 w-5 text-primary" />
           <span className="font-semibold text-lg">
-            R$ {proposedValue.toFixed(2)}
+            {formatBRL(proposedValue)}
           </span>
         </div>
         <span className="text-xs text-muted-foreground">
@@ -113,6 +114,7 @@ export function ClientProposalCard({
           href={contractUrl}
           target="_blank"
           rel="noopener noreferrer"
+          download
           className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
         >
           <FileText className="h-4 w-4" />
