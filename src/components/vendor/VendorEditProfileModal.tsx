@@ -50,6 +50,18 @@ const editProfileSchema = z.object({
     .trim()
     .min(2, 'Bairro é obrigatório')
     .max(100, 'Bairro deve ter no máximo 100 caracteres'),
+  website_url: z
+    .string()
+    .trim()
+    .url('Digite uma URL válida')
+    .or(z.literal('')),
+  instagram_url: z
+    .string()
+    .trim()
+    .refine(
+      (val) => val === '' || /^https:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9_.]+\/?$/.test(val),
+      'Digite uma URL válida do Instagram'
+    ),
   images: z.array(z.string()).min(1, 'Adicione pelo menos 1 imagem'),
 });
 
@@ -62,6 +74,8 @@ interface VendorData {
   custom_category: string | null;
   description: string | null;
   neighborhood: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
   images: string[] | null;
 }
 
@@ -89,6 +103,8 @@ export function VendorEditProfileModal({
       custom_category: vendorData.custom_category || '',
       description: vendorData.description || '',
       neighborhood: vendorData.neighborhood || '',
+      website_url: vendorData.website_url || '',
+      instagram_url: vendorData.instagram_url || '',
       images: vendorData.images || [],
     },
     mode: 'onChange',
@@ -105,6 +121,8 @@ export function VendorEditProfileModal({
         custom_category: vendorData.custom_category || '',
         description: vendorData.description || '',
         neighborhood: vendorData.neighborhood || '',
+        website_url: vendorData.website_url || '',
+        instagram_url: vendorData.instagram_url || '',
         images: vendorData.images || [],
       });
     }
@@ -122,6 +140,8 @@ export function VendorEditProfileModal({
           custom_category: data.category === 'outros' ? data.custom_category : null,
           description: data.description,
           neighborhood: data.neighborhood,
+          website_url: data.website_url || null,
+          instagram_url: data.instagram_url || null,
           images: data.images,
           // Reset approval when editing - requires re-approval
           approval_status: 'pending',
@@ -268,6 +288,41 @@ export function VendorEditProfileModal({
                   <FormDescription>
                     {field.value?.length || 0}/500 caracteres
                   </FormDescription>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="website_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Site (opcional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Ex: https://www.seu-site.com"
+                      type="url"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="instagram_url"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Instagram (opcional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Ex: https://instagram.com/seu_perfil"
+                      {...field}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}

@@ -72,6 +72,8 @@ interface VendorInfo {
   custom_category: string | null;
   description: string | null;
   neighborhood: string | null;
+  website_url: string | null;
+  instagram_url: string | null;
   images: string[] | null;
   approval_status: string;
   is_approved: boolean;
@@ -683,7 +685,9 @@ function DashboardContent() {
               category: vendorInfo.category as 'confeitaria' | 'doces' | 'salgados' | 'decoracao' | 'outros',
               custom_category: vendorInfo.custom_category,
               description: vendorInfo.description,
-              neighborhood: vendorInfo.neighborhood,
+               neighborhood: vendorInfo.neighborhood,
+              website_url: vendorInfo.website_url,
+              instagram_url: vendorInfo.instagram_url,
               images: vendorInfo.images,
             }}
             onSave={fetchData}
