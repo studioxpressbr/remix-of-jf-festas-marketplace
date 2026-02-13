@@ -1,30 +1,75 @@
 
 
-## Adicionar Avaliação ao Card do Cliente
+## Plano de Segurança do Site
 
-**Créditos estimados: 1**
+**Créditos estimados: 3-4**
 
-### O que será feito
+### Resumo da Auditoria
 
-No card "Meus Dados" do painel do cliente (`src/pages/ClientDashboard.tsx`), será adicionada uma seção com estrelas mostrando a avaliação média que o cliente recebeu dos fornecedores, junto com o número de avaliações.
+Foi realizada uma varredura completa de segurança. Abaixo estão os problemas encontrados, organizados por prioridade.
 
-### Alterações
+### Problemas Críticos (ERRO)
 
-**Arquivo: `src/pages/ClientDashboard.tsx`**
+#### 1. Views com SECURITY DEFINER (`vendors_public` e `vendors_search`)
+As views `vendors_public` e `vendors_search` usam `SECURITY DEFINER`, o que significa que qualquer consulta a essas views roda com as permissões do criador (normalmente superusuário), ignorando as políticas de RLS.
 
-1. Adicionar estado para `avgRating` e `reviewCount`
-2. Criar função `fetchClientRating()` que consulta a tabela `reviews` filtrando por `target_id = user.id` e calcula a média e contagem
-3. Chamar essa função no `useEffect` quando o usuário estiver carregado
-4. Adicionar o componente `StarRating` (já existente) no card de perfil, abaixo dos dados de WhatsApp, mostrando a avaliação média recebida pelos fornecedores
+**Solução:** Recriar ambas as views como `SECURITY INVOKER` para que respeitem as permissões do usuário que consulta. Manter os `GRANT SELECT` para `anon` e `authenticated`.
 
-### Detalhes Técnicos
+#### 2. Tabela `reviews` expõe IDs de usuários publicamente
+A política atual permite `SELECT` com `USING (true)`, ou seja, qualquer pessoa (inclusive não autenticada) pode ver todos os reviews, incluindo `reviewer_id` e `target_id`.
 
-A consulta será:
-```sql
-SELECT rating FROM reviews WHERE target_id = :userId
-```
+**Solução:** Restringir a política de SELECT para que apenas usuários autenticados vejam reviews. Os IDs dos usuários já são UUIDs (difíceis de adivinhar), mas limitar o acesso a autenticados reduz o risco de scraping em massa.
 
-O cálculo de média será feito no frontend (a tabela reviews é pública para SELECT). O componente `StarRating` de `src/components/ui/star-rating.tsx` será reutilizado com tamanho `md`.
+#### 3. Tabela `coupons` expõe dados comerciais sensíveis
+Cupons ativos são visíveis por qualquer pessoa, incluindo `vendor_id`, `min_order_value`, `current_uses` e `max_uses`. Concorrentes podem usar essas informações.
 
-Visualmente, será um novo bloco no card com icone de estrela, label "Avaliação" e o componente StarRating exibindo a média e contagem (ex: "4.5 (3)"). Se não houver avaliações, exibirá "Sem avaliações".
+**Solução:** Restringir a política de SELECT de cupons ativos para apenas usuários autenticados.
+
+### Problemas Importantes (AVISO)
+
+#### 4. Proteção contra senhas vazadas desativada
+O recurso "Leaked Password Protection" está desativado. Isso significa que usuários podem cadastrar senhas que já foram comprometidas em outros sites.
+
+**Solução:** Isso precisa ser ativado manualmente nas configurações de autenticação do backend. Vou orientar como fazer.
+
+#### 5. Views `vendors_public` e `vendors_search` sem políticas de RLS
+Apesar de terem RLS habilitado, não possuem políticas definidas. Atualmente funcionam porque têm `GRANT SELECT`, mas é uma configuração frágil.
+
+**Solução:** Após recriar como `SECURITY INVOKER`, adicionar políticas explícitas de SELECT para `anon` e `authenticated`.
+
+### Problemas Informativos (baixo risco)
+
+#### 6. Tabelas sem políticas de DELETE/UPDATE
+- `quotes`: clientes não podem deletar cotações
+- `reviews`: não podem ser editadas ou removidas
+- `vendor_credits`: não podem ser corrigidos
+
+**Solução:** Estes são por design (imutabilidade). Vou marcar como intencionais no sistema de segurança, sem alterações necessárias.
+
+#### 7. `payment_transactions` sem INSERT via RLS
+Inserções acontecem via edge functions com `service_role`. Isso é intencional e seguro.
+
+### Plano de Execução
+
+**Etapa 1 - Migration SQL (1 crédito):**
+- Recriar views `vendors_public` e `vendors_search` como `SECURITY INVOKER`
+- Alterar política de `reviews` de `USING (true)` para `USING (auth.uid() IS NOT NULL)`
+- Alterar política de `coupons` para exigir autenticação
+
+**Etapa 2 - Validação e marcação (1 crédito):**
+- Testar que as views continuam funcionando para usuários autenticados e visitantes (busca pública)
+- Marcar findings intencionais (DELETE em quotes, reviews, credits) como ignorados no scanner
+
+**Etapa 3 - Orientação manual:**
+- Instruções para ativar "Leaked Password Protection" nas configurações do backend
+
+### Impacto no Usuário Final
+
+- A busca pública de fornecedores continuará funcionando normalmente (views com GRANT para `anon`)
+- Reviews e cupons só serão visíveis para usuários logados
+- Nenhuma mudança visual no site
+
+### Observação Importante
+
+As políticas de RLS existentes para `profiles`, `vendors`, `leads_access` e `payment_transactions` já estão bem configuradas com acesso granular. O foco deste plano são as lacunas identificadas na auditoria.
 
