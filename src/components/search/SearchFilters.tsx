@@ -78,6 +78,11 @@ export function SearchFilters({
           placeholder="Nome, descrição..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && onSearch) {
+              onSearch();
+            }
+          }}
         />
       </div>
 
