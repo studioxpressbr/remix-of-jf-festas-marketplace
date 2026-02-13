@@ -539,6 +539,8 @@ export type Database = {
           submitted_at: string | null
           subscription_expiry: string | null
           subscription_status: Database["public"]["Enums"]["subscription_status"]
+          vendor_type: Database["public"]["Enums"]["vendor_type"]
+          website_url: string | null
         }
         Insert: {
           approval_status?: string
@@ -561,6 +563,8 @@ export type Database = {
           submitted_at?: string | null
           subscription_expiry?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
+          vendor_type?: Database["public"]["Enums"]["vendor_type"]
+          website_url?: string | null
         }
         Update: {
           approval_status?: string
@@ -583,6 +587,8 @@ export type Database = {
           submitted_at?: string | null
           subscription_expiry?: string | null
           subscription_status?: Database["public"]["Enums"]["subscription_status"]
+          vendor_type?: Database["public"]["Enums"]["vendor_type"]
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -620,6 +626,8 @@ export type Database = {
           subscription_status:
             | Database["public"]["Enums"]["subscription_status"]
             | null
+          vendor_type: Database["public"]["Enums"]["vendor_type"] | null
+          website_url: string | null
         }
         Insert: {
           business_name?: string | null
@@ -637,6 +645,8 @@ export type Database = {
           subscription_status?:
             | Database["public"]["Enums"]["subscription_status"]
             | null
+          vendor_type?: Database["public"]["Enums"]["vendor_type"] | null
+          website_url?: string | null
         }
         Update: {
           business_name?: string | null
@@ -654,6 +664,8 @@ export type Database = {
           subscription_status?:
             | Database["public"]["Enums"]["subscription_status"]
             | null
+          vendor_type?: Database["public"]["Enums"]["vendor_type"] | null
+          website_url?: string | null
         }
         Relationships: [
           {
@@ -693,48 +705,8 @@ export type Database = {
           subscription_status:
             | Database["public"]["Enums"]["subscription_status"]
             | null
-        }
-        Insert: {
-          active_coupons_count?: never
-          approved_at?: string | null
-          avg_rating?: never
-          business_name?: string | null
-          category?: Database["public"]["Enums"]["vendor_category"] | null
-          category_id?: string | null
-          created_at?: string | null
-          custom_category?: string | null
-          description?: string | null
-          id?: string | null
-          images?: string[] | null
-          is_approved?: boolean | null
-          neighborhood?: string | null
-          profile_id?: string | null
-          review_count?: never
-          slug?: string | null
-          subscription_status?:
-            | Database["public"]["Enums"]["subscription_status"]
-            | null
-        }
-        Update: {
-          active_coupons_count?: never
-          approved_at?: string | null
-          avg_rating?: never
-          business_name?: string | null
-          category?: Database["public"]["Enums"]["vendor_category"] | null
-          category_id?: string | null
-          created_at?: string | null
-          custom_category?: string | null
-          description?: string | null
-          id?: string | null
-          images?: string[] | null
-          is_approved?: boolean | null
-          neighborhood?: string | null
-          profile_id?: string | null
-          review_count?: never
-          slug?: string | null
-          subscription_status?:
-            | Database["public"]["Enums"]["subscription_status"]
-            | null
+          vendor_type: Database["public"]["Enums"]["vendor_type"] | null
+          website_url: string | null
         }
         Relationships: [
           {
@@ -804,6 +776,7 @@ export type Database = {
         | "churrasqueiro"
         | "equipes"
         | "bar"
+      vendor_type: "mei" | "empresarial"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -954,6 +927,7 @@ export const Constants = {
         "equipes",
         "bar",
       ],
+      vendor_type: ["mei", "empresarial"],
     },
   },
 } as const

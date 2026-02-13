@@ -15,7 +15,7 @@ import { DealClosedModal } from '@/components/vendor/DealClosedModal';
 import { VendorReviewClientModal } from '@/components/vendor/VendorReviewClientModal';
 import { DeleteAccountModal } from '@/components/vendor/DeleteAccountModal';
 import { supabase } from '@/integrations/supabase/client';
-import { SUBSCRIPTION_PRICE, STRIPE_ANNUAL_PLAN } from '@/lib/constants';
+import { MEI_PLAN_PRICE, EMPRESARIAL_PLAN_PRICE, STRIPE_MEI_PLAN, STRIPE_EMPRESARIAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
@@ -77,6 +77,7 @@ interface VendorInfo {
   is_approved: boolean;
   submitted_at: string | null;
   created_at: string;
+  vendor_type: 'mei' | 'empresarial';
 }
 
 interface CreditTransaction {
@@ -140,7 +141,7 @@ function DashboardContent() {
     // Fetch vendor info with all fields needed for pending state
     const { data: vendorData } = await supabase
       .from('vendors')
-      .select('id, subscription_status, subscription_expiry, business_name, category, custom_category, description, neighborhood, images, approval_status, is_approved, submitted_at, created_at')
+      .select('id, subscription_status, subscription_expiry, business_name, category, custom_category, description, neighborhood, images, approval_status, is_approved, submitted_at, created_at, vendor_type')
       .eq('profile_id', user.id)
       .maybeSingle();
 
@@ -283,9 +284,12 @@ function DashboardContent() {
 
   const handleActivateSubscription = async () => {
     try {
+      const planType = vendorInfo?.vendor_type || 'mei';
+      const plan = planType === 'empresarial' ? STRIPE_EMPRESARIAL_PLAN : STRIPE_MEI_PLAN;
+      
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: { 
-          priceId: STRIPE_ANNUAL_PLAN.priceId,
+          priceId: plan.priceId,
           mode: 'subscription',
         },
       });
@@ -454,12 +458,12 @@ function DashboardContent() {
                       </Button>
                     </div>
                   </div>
-                  {vendorInfo?.subscription_status !== 'active' && (
+                    {vendorInfo?.subscription_status !== 'active' && (
                     <Button
                       onClick={handleActivateSubscription}
                       className="bg-gradient-coral shadow-coral"
                     >
-                      Ativar por R$ {SUBSCRIPTION_PRICE}/ano
+                      Ativar Plano
                     </Button>
                   )}
                 </CardContent>
