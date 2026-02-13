@@ -534,6 +534,7 @@ export type Database = {
           neighborhood: string | null
           profile_id: string
           rejection_reason: string | null
+          slug: string | null
           stripe_customer_id: string | null
           submitted_at: string | null
           subscription_expiry: string | null
@@ -555,6 +556,7 @@ export type Database = {
           neighborhood?: string | null
           profile_id: string
           rejection_reason?: string | null
+          slug?: string | null
           stripe_customer_id?: string | null
           submitted_at?: string | null
           subscription_expiry?: string | null
@@ -576,6 +578,7 @@ export type Database = {
           neighborhood?: string | null
           profile_id?: string
           rejection_reason?: string | null
+          slug?: string | null
           stripe_customer_id?: string | null
           submitted_at?: string | null
           subscription_expiry?: string | null
@@ -613,6 +616,7 @@ export type Database = {
           is_approved: boolean | null
           neighborhood: string | null
           profile_id: string | null
+          slug: string | null
           subscription_status:
             | Database["public"]["Enums"]["subscription_status"]
             | null
@@ -629,6 +633,7 @@ export type Database = {
           is_approved?: boolean | null
           neighborhood?: string | null
           profile_id?: string | null
+          slug?: string | null
           subscription_status?:
             | Database["public"]["Enums"]["subscription_status"]
             | null
@@ -645,6 +650,7 @@ export type Database = {
           is_approved?: boolean | null
           neighborhood?: string | null
           profile_id?: string | null
+          slug?: string | null
           subscription_status?:
             | Database["public"]["Enums"]["subscription_status"]
             | null
@@ -683,6 +689,7 @@ export type Database = {
           neighborhood: string | null
           profile_id: string | null
           review_count: number | null
+          slug: string | null
           subscription_status:
             | Database["public"]["Enums"]["subscription_status"]
             | null
@@ -703,6 +710,7 @@ export type Database = {
           neighborhood?: string | null
           profile_id?: string | null
           review_count?: never
+          slug?: string | null
           subscription_status?:
             | Database["public"]["Enums"]["subscription_status"]
             | null
@@ -723,6 +731,7 @@ export type Database = {
           neighborhood?: string | null
           profile_id?: string | null
           review_count?: never
+          slug?: string | null
           subscription_status?:
             | Database["public"]["Enums"]["subscription_status"]
             | null
@@ -746,6 +755,7 @@ export type Database = {
       }
     }
     Functions: {
+      generate_slug: { Args: { "": string }; Returns: string }
       get_expiring_bonus_credits: {
         Args: { p_vendor_id: string }
         Returns: {
