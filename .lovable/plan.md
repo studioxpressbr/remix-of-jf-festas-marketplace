@@ -1,74 +1,42 @@
 
-## Implementação da Automação de Solicitação de Avaliação (Cron + Edge Function)
+## Correções no Filtro de Busca
 
-### Status Atual
+### Problemas Identificados
 
-✅ **Concluído:**
-- Edge function `send-review-request` criada com lógica completa de busca e envio de e-mails
-- Extensões `pg_cron` e `pg_net` habilitadas
-- Secret `RESEND_API_KEY` configurado
-- RLS policies criadas
-- Coluna `review_requested_at` adicionada à tabela `leads_access`
+1. **"Limpar filtros" nao re-executa a busca** - Ao clicar em "Limpar filtros", os campos do formulario sao resetados, mas a busca nao e re-executada. O usuario precisa clicar "Buscar" manualmente novamente, o que causa confusao pois os resultados antigos permanecem na tela com filtros limpos.
 
-❌ **Pendente:**
-- Agendar o cron job para executar a edge function diariamente
-- Testar o fluxo completo
+2. **Busca nao e automatica ao mudar filtros** - O usuario precisa sempre clicar no botao "Buscar" para aplicar qualquer alteracao. A experiencia ideal seria buscar automaticamente ao selecionar categoria, bairro ou checkbox de cupons (com debounce para o campo de texto).
 
-### O Que Será Feito
+3. **Estado inicial de categoria/bairro inconsistente** - Os selects usam `'all'` como valor para "todos", mas o estado inicial e `''` (string vazia). Isso causa inconsistencia na logica de comparacao.
 
-**1. Agendar Cron Job (SQL Migration)**
+4. **Rating "2.0" exibido sem contexto** - Abaixo do slider de avaliacao aparece "2.0" que parece ser um artefato visual de um vendor card parcialmente visivel, mas a area do slider pode ser confusa.
 
-Criar uma nova migração SQL que:
-- Defina o cron job `send-review-requests-daily` para executar a edge function diariamente às 13:00 UTC
-- Use `net.http_post` para chamar a edge function via HTTP
-- Inclua o header de Authorization com o anon key do projeto (para que a função processe sem erro)
+### Solucao Proposta
 
-SQL a ser executado:
-```sql
-SELECT cron.schedule(
-  'send-review-requests-daily',
-  '0 13 * * *',
-  $$
-  SELECT net.http_post(
-    url:='https://zmkykifewxehtgxthpof.supabase.co/functions/v1/send-review-request',
-    headers:='{"Content-Type": "application/json", "Authorization": "Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inpta3lraWZld3hlaHRneHRocG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njk0NjgyMzgsImV4cCI6MjA4NTA0NDIzOH0.TfbodVNWB8PkkTPqkElS5cPPs6Zrh25ObyrDBVXmca4"}'::jsonb,
-    body:='{}'::jsonb
-  ) as request_id;
-  $$
-);
-```
+**Arquivo: `src/pages/Buscar.tsx`**
 
-**2. Validar a Edge Function**
+- Alterar `clearFilters()` para chamar `searchVendors()` apos resetar os estados (usando um flag ou chamando diretamente)
+- Mudar os estados iniciais de `selectedCategory` e `selectedNeighborhood` de `''` para `'all'` quando nao ha parametro de URL
+- Tornar a busca automatica: remover o botao "Buscar" obrigatorio e aplicar filtros em tempo real (com debounce de 300ms para o campo de texto)
+- Remover a logica de `shouldSearch` que e desnecessariamente complexa e substituir por um `useEffect` que reage as mudancas de filtros
 
-A implementação atual já contém:
-- ✅ Busca de leads elegíveis (deal_closed = true, event_date < hoje, review_requested_at IS NULL)
-- ✅ Verificação se review já existe
-- ✅ Envio de e-mail via Resend com template em português
-- ✅ Atualização de `review_requested_at` para evitar reenvios
-- ✅ Logging de sucessos e erros
-- ✅ Tratamento de CORS headers
+**Arquivo: `src/components/search/SearchFilters.tsx`**
 
-Pequeno ajuste sugerido:
-- Adicionar validação para garantir que `deal_value` foi informado antes de enviar o e-mail (regra de negócio: só avaliar se o valor foi preenchido)
+- Permitir busca ao pressionar Enter no campo de texto
+- Manter o botao "Buscar" como atalho visual, mas nao como unica forma de buscar
 
-**3. Teste Manual (Ação do Usuário)**
+### Detalhes Tecnicos
 
-Após a migração:
-- Ir para o Cloud Backend e executar manualmente a edge function via testes
-- Ou esperar a execução do cron job às 13:00 UTC
-- Verificar nos logs da função se está funcionando
+As alteracoes principais serao em `src/pages/Buscar.tsx`:
 
-### Arquivos a Serem Criados/Editados
+1. Remover `shouldSearch` state e o `useEffect` associado
+2. Usar um `useEffect` com dependencias nos filtros (categoria, bairro, cupons, rating) para buscar automaticamente quando esses mudam
+3. Adicionar debounce de 300ms no `searchTerm` usando um `useEffect` + `setTimeout`
+4. Na funcao `clearFilters()`, resetar os valores para `'all'` (em vez de `''`) e disparar a busca imediatamente
+5. Remover a duplicacao de logica de URL params entre o `useEffect` e `handleSearch`
 
-| Arquivo | Ação | Descrição |
-|---------|------|-----------|
-| `supabase/migrations/20260212_schedule_review_cron.sql` | Criar | Agendar cron job para executar a edge function |
-| `supabase/functions/send-review-request/index.ts` | Editar (opcional) | Adicionar validação de `deal_value` |
+Em `src/components/search/SearchFilters.tsx`:
+1. Adicionar `onKeyDown` no Input para disparar busca ao pressionar Enter
+2. Manter botao "Buscar" como opcao alternativa
 
-### Cronograma de Execução
-
-- **13:00 UTC (diariamente)**: Edge function é triggerada pelo cron job
-- Processa todos os leads elegíveis desde a última execução
-- Envia e-mails de convite aos clientes
-- Atualiza `review_requested_at` para evitar reenvios
-
+A busca continuara usando a view `vendors_search` com os mesmos filtros existentes (ilike para texto, eq para categoria/bairro, gte para rating, not null + gte para cupons).
