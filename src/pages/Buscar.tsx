@@ -33,8 +33,9 @@ function SearchPage() {
   
   // Filter states
   const [searchTerm, setSearchTerm] = useState(searchParams.get('q') || '');
-  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('categoria') || '');
-  const [selectedNeighborhood, setSelectedNeighborhood] = useState(searchParams.get('bairro') || '');
+  const [debouncedSearchTerm, setDebouncedSearchTerm] = useState(searchTerm);
+  const [selectedCategory, setSelectedCategory] = useState(searchParams.get('categoria') || 'all');
+  const [selectedNeighborhood, setSelectedNeighborhood] = useState(searchParams.get('bairro') || 'all');
   const [hasCoupons, setHasCoupons] = useState(searchParams.get('cupons') === '1');
   const [minRating, setMinRating] = useState(Number(searchParams.get('avaliacao')) || 0);
   
@@ -43,7 +44,6 @@ function SearchPage() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [neighborhoods, setNeighborhoods] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
-  const [shouldSearch, setShouldSearch] = useState(true);
 
   // Fetch categories on mount - with fallback to constants
   useEffect(() => {
@@ -96,7 +96,15 @@ function SearchPage() {
     setSearchParams(params, { replace: true });
   }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating, setSearchParams]);
 
-  // Search function triggered by button or initial load
+  // Debounce search term
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedSearchTerm(searchTerm);
+    }, 300);
+    return () => clearTimeout(handler);
+  }, [searchTerm]);
+
+  // Search function
   const searchVendors = useCallback(async () => {
     setLoading(true);
     
@@ -105,8 +113,8 @@ function SearchPage() {
       .select('*');
 
     // Text search
-    if (searchTerm) {
-      const sanitizedTerm = searchTerm
+    if (debouncedSearchTerm) {
+      const sanitizedTerm = debouncedSearchTerm
         .slice(0, 100)
         .replace(/[%_\\[\]]/g, '')
         .trim();
@@ -126,7 +134,7 @@ function SearchPage() {
       query = query.eq('neighborhood', selectedNeighborhood);
     }
 
-    // Coupons filter - use gte(1) to handle nulls properly
+    // Coupons filter
     if (hasCoupons) {
       query = query.not('active_coupons_count', 'is', null).gte('active_coupons_count', 1);
     }
@@ -139,34 +147,18 @@ function SearchPage() {
     const { data } = await query.order('created_at', { ascending: false });
     setVendors((data as unknown as Vendor[]) || []);
     setLoading(false);
-    setShouldSearch(false);
-  }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating]);
+  }, [debouncedSearchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating]);
 
-  // Initial search on mount
+  // Auto-search when any filter changes
   useEffect(() => {
-    if (shouldSearch) {
-      searchVendors();
-    }
-  }, [shouldSearch, searchVendors]);
-
-  const handleSearch = () => {
-    // Update URL params
-    const params = new URLSearchParams();
-    if (searchTerm) params.set('q', searchTerm);
-    if (selectedCategory && selectedCategory !== 'all') params.set('categoria', selectedCategory);
-    if (selectedNeighborhood && selectedNeighborhood !== 'all') params.set('bairro', selectedNeighborhood);
-    if (hasCoupons) params.set('cupons', '1');
-    if (minRating > 0) params.set('avaliacao', String(minRating));
-    setSearchParams(params, { replace: true });
-    
-    // Trigger search
     searchVendors();
-  };
+  }, [searchVendors]);
 
   const clearFilters = () => {
     setSearchTerm('');
-    setSelectedCategory('');
-    setSelectedNeighborhood('');
+    setDebouncedSearchTerm('');
+    setSelectedCategory('all');
+    setSelectedNeighborhood('all');
     setHasCoupons(false);
     setMinRating(0);
   };
@@ -209,7 +201,7 @@ function SearchPage() {
             categories={categories}
             onClearFilters={clearFilters}
             hasActiveFilters={hasActiveFilters}
-            onSearch={handleSearch}
+            onSearch={searchVendors}
           />
 
           {/* Results */}
