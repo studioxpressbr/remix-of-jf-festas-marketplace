@@ -1,19 +1,21 @@
+import { useState } from 'react';
 import { Header } from '@/components/layout/Header';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SUBSCRIPTION_PRICE, LEAD_PRICE, STRIPE_ANNUAL_PLAN, STRIPE_LEAD_CREDITS } from '@/lib/constants';
+import { MEI_PLAN_PRICE, EMPRESARIAL_PLAN_PRICE, LEAD_PRICE, STRIPE_MEI_PLAN, STRIPE_EMPRESARIAL_PLAN, STRIPE_LEAD_CREDITS } from '@/lib/constants';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Check, Crown, Sparkles, Users, Star, Shield, Zap, Lock } from 'lucide-react';
+import { Check, Crown, Sparkles, Users, Star, Shield, Zap, Lock, Globe } from 'lucide-react';
 
 function PrecosContent() {
   const { user, profile } = useAuthContext();
   const { toast } = useToast();
+  const [selectedPlan, setSelectedPlan] = useState<'mei' | 'empresarial'>('mei');
 
-  const handleSubscribe = async () => {
+  const handleSubscribe = async (planType: 'mei' | 'empresarial') => {
     if (!user) {
       toast({
         title: 'Login necessário',
@@ -24,9 +26,10 @@ function PrecosContent() {
     }
 
     try {
+      const plan = planType === 'empresarial' ? STRIPE_EMPRESARIAL_PLAN : STRIPE_MEI_PLAN;
       const { data, error } = await supabase.functions.invoke('create-checkout', {
         body: {
-          priceId: STRIPE_ANNUAL_PLAN.priceId,
+          priceId: plan.priceId,
           mode: 'subscription',
         },
       });
@@ -45,12 +48,52 @@ function PrecosContent() {
     }
   };
 
-  const benefits = [
+  const handleBuyCredits = async () => {
+    if (!user) {
+      toast({
+        title: 'Login necessário',
+        description: 'Faça login como fornecedor para comprar créditos.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('create-checkout', {
+        body: {
+          priceId: STRIPE_LEAD_CREDITS.priceId,
+          mode: 'payment',
+        },
+      });
+
+      if (error) throw error;
+
+      if (data?.url) {
+        window.location.href = data.url;
+      }
+    } catch (error: unknown) {
+      toast({
+        title: 'Erro ao processar',
+        description: error instanceof Error ? error.message : 'Tente novamente',
+        variant: 'destructive',
+      });
+    }
+  };
+
+  const meiFeatures = [
     { icon: Crown, text: 'Perfil destacado na plataforma' },
     { icon: Users, text: 'Receba cotações de clientes' },
     { icon: Star, text: 'Avaliações de clientes' },
     { icon: Shield, text: 'Suporte prioritário' },
     { icon: Zap, text: 'Acesso a estatísticas' },
+  ];
+
+  const empresarialFeatures = [
+    { icon: Crown, text: 'Tudo do plano MEI' },
+    { icon: Globe, text: 'Link do site oficial da empresa' },
+    { icon: Users, text: 'Prioridade em destaque' },
+    { icon: Star, text: 'Badge de Plano Empresarial' },
+    { icon: Zap, text: 'Acesso a relatórios avançados' },
   ];
 
   return (
@@ -76,41 +119,83 @@ function PrecosContent() {
         </div>
 
         {/* Pricing Cards */}
-        <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-2">
-          {/* Annual Subscription */}
+        <div className="mx-auto grid max-w-6xl gap-8 md:grid-cols-3">
+          {/* MEI Plan */}
           <Card className="relative overflow-hidden border-2 border-coral-light bg-gradient-card">
-            <div className="absolute right-0 top-0 bg-gradient-coral px-3 py-1 text-xs font-medium text-primary-foreground">
-              Recomendado
-            </div>
             <CardHeader className="pb-4">
               <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-coral">
                 <Crown className="h-6 w-6 text-primary-foreground" />
               </div>
-              <CardTitle className="font-display text-2xl">Plano Anual</CardTitle>
+              <CardTitle className="font-display text-2xl">Plano MEI</CardTitle>
               <CardDescription>
-                Apareça para milhares de clientes em busca de fornecedores
+                Ideal para negócios iniciantes
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="flex items-baseline gap-1">
-                <span className="text-4xl font-bold">R$ {SUBSCRIPTION_PRICE}</span>
+                <span className="text-4xl font-bold">R$ {MEI_PLAN_PRICE}</span>
                 <span className="text-muted-foreground">/ano</span>
               </div>
               
               <ul className="space-y-3">
-                {benefits.map((benefit, i) => (
+                {meiFeatures.map((feature, i) => (
                   <li key={i} className="flex items-center gap-3">
-                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light flex-shrink-0">
                       <Check className="h-4 w-4 text-sage" />
                     </div>
-                    <span className="text-sm">{benefit.text}</span>
+                    <span className="text-sm">{feature.text}</span>
                   </li>
                 ))}
               </ul>
 
               <Button
-                onClick={handleSubscribe}
+                onClick={() => handleSubscribe('mei')}
                 className="w-full bg-gradient-coral shadow-coral"
+                size="lg"
+              >
+                Começar Agora
+              </Button>
+
+              <p className="text-center text-xs text-muted-foreground">
+                Pagamento seguro via Stripe. Cancele quando quiser.
+              </p>
+            </CardContent>
+          </Card>
+
+          {/* Empresarial Plan */}
+          <Card className="relative overflow-hidden border-2 border-amber-400 bg-gradient-card md:scale-105">
+            <div className="absolute right-0 top-0 bg-amber-500 px-3 py-1 text-xs font-medium text-white">
+              Recomendado
+            </div>
+            <CardHeader className="pb-4">
+              <div className="mb-2 flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100">
+                <Crown className="h-6 w-6 text-amber-700" />
+              </div>
+              <CardTitle className="font-display text-2xl">Plano Empresarial</CardTitle>
+              <CardDescription>
+                Para empresas e profissionais
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-bold">R$ {EMPRESARIAL_PLAN_PRICE}</span>
+                <span className="text-muted-foreground">/ano</span>
+              </div>
+              
+              <ul className="space-y-3">
+                {empresarialFeatures.map((feature, i) => (
+                  <li key={i} className="flex items-center gap-3">
+                    <div className="flex h-6 w-6 items-center justify-center rounded-full bg-amber-100 flex-shrink-0">
+                      <Check className="h-4 w-4 text-amber-700" />
+                    </div>
+                    <span className="text-sm">{feature.text}</span>
+                  </li>
+                ))}
+              </ul>
+
+              <Button
+                onClick={() => handleSubscribe('empresarial')}
+                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
                 size="lg"
               >
                 Começar Agora
@@ -141,25 +226,25 @@ function PrecosContent() {
               
               <ul className="space-y-3">
                 <li className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light flex-shrink-0">
                     <Check className="h-4 w-4 text-sage" />
                   </div>
                   <span className="text-sm">Nome completo do cliente</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light flex-shrink-0">
                     <Check className="h-4 w-4 text-sage" />
                   </div>
                   <span className="text-sm">WhatsApp para contato direto</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light flex-shrink-0">
                     <Check className="h-4 w-4 text-sage" />
                   </div>
                   <span className="text-sm">E-mail do cliente</span>
                 </li>
                 <li className="flex items-center gap-3">
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light flex-shrink-0">
                     <Check className="h-4 w-4 text-sage" />
                   </div>
                   <span className="text-sm">Detalhes do evento</span>
@@ -171,6 +256,15 @@ function PrecosContent() {
                   💡 O crédito é cobrado apenas quando você opta por ver os dados de um cliente específico.
                 </p>
               </div>
+
+              <Button
+                onClick={handleBuyCredits}
+                variant="outline"
+                className="w-full"
+                size="lg"
+              >
+                Comprar Créditos
+              </Button>
 
               <p className="text-center text-xs text-muted-foreground">
                 Requer assinatura ativa do Plano Anual.
@@ -191,6 +285,15 @@ function PrecosContent() {
                 <p className="mt-1 text-sm text-muted-foreground">
                   Após o cadastro, nossa equipe revisa seu perfil em até 24 horas. 
                   Você receberá um e-mail quando for aprovado.
+                </p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-card">
+              <CardContent className="py-4">
+                <h3 className="font-semibold">Qual a diferença entre MEI e Empresarial?</h3>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  O plano Empresarial permite adicionar o link do site oficial da sua empresa 
+                  e oferece prioridade em destaque. Ideal para empresas que querem maior visibilidade.
                 </p>
               </CardContent>
             </Card>

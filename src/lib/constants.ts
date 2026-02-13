@@ -36,16 +36,30 @@ export const CATEGORY_COLORS: Record<string, string> = {
   outros: 'bg-muted text-muted-foreground',
 };
 
-export const SUBSCRIPTION_PRICE = 99; // R$ 99/year
+export const MEI_PLAN_PRICE = 99; // R$ 99/year
+export const EMPRESARIAL_PLAN_PRICE = 499; // R$ 499/year
 export const LEAD_PRICE = 2; // R$ 2/lead
 
 // Stripe Product & Price IDs
-export const STRIPE_ANNUAL_PLAN = {
+export const STRIPE_MEI_PLAN = {
   priceId: 'price_1StuHiRDc1lDOFiCCvZkwhg9',
   productId: 'prod_TrdYUtmHlctYqF',
+  label: 'Plano MEI',
+};
+
+export const STRIPE_EMPRESARIAL_PLAN = {
+  priceId: 'price_1T0O3kPBxEvxO8pMReV3b3Qd',
+  productId: 'prod_empresarial',
+  label: 'Plano Empresarial',
 };
 
 export const STRIPE_LEAD_CREDITS = {
   priceId: 'price_1StuLVRDc1lDOFiCfmHwuIrg',
   productId: 'prod_Trdc7wGUjzkUS8',
+};
+
+// Vendor type labels
+export const VENDOR_TYPE_LABELS: Record<string, string> = {
+  mei: 'MEI',
+  empresarial: 'Empresarial',
 };

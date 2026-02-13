@@ -14,7 +14,7 @@ import { Separator } from '@/components/ui/separator';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable/index';
-import { SUBSCRIPTION_PRICE } from '@/lib/constants';
+import { MEI_PLAN_PRICE } from '@/lib/constants';
 import { Loader2 } from 'lucide-react';
 import { translateAuthError } from '@/lib/auth-errors';
 
@@ -171,7 +171,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
           <DialogDescription>
             {step === 'auth' ? (
               mode === 'vendor' ? (
-                <>Plano anual por apenas <strong>R$ {SUBSCRIPTION_PRICE}</strong></>
+                <>Plano a partir de <strong>R$ {MEI_PLAN_PRICE}</strong>/ano</>
               ) : (
                 'Encontre os melhores fornecedores gratuitamente'
               )
