@@ -144,7 +144,7 @@ export function SearchFilters({
       </div>
 
       {/* Rating Slider */}
-      <div className="space-y-3 pb-2">
+      <div className="relative space-y-3 pb-4">
         <Label className="flex items-center gap-2 text-sm font-medium">
           <Star className="h-4 w-4" />
           Avaliação mínima: {minRating > 0 ? `${minRating} estrela${minRating > 1 ? 's' : ''}` : 'Qualquer'}
@@ -217,7 +217,7 @@ export function SearchFilters({
   }
 
   return (
-    <aside className="sticky top-4 h-fit w-72 shrink-0 rounded-lg border bg-card p-4 shadow-soft">
+    <aside className="sticky top-4 z-10 h-fit w-72 shrink-0 overflow-hidden rounded-lg border bg-card p-4 shadow-soft">
       <h2 className="mb-4 flex items-center gap-2 font-display text-lg font-semibold">
         <Filter className="h-5 w-5" />
         Filtros
