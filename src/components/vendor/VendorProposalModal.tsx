@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Upload, X, FileText } from 'lucide-react';
+import { formatBRL } from '@/lib/utils';
 
 interface VendorProposalModalProps {
   open: boolean;
@@ -149,7 +150,7 @@ export function VendorProposalModal({
 
       toast({
         title: 'Proposta enviada!',
-        description: `Proposta de R$ ${numericValue.toFixed(2)} enviada para ${clientName}.`,
+        description: `Proposta de ${formatBRL(numericValue)} enviada para ${clientName}.`,
       });
 
       onSuccess();
