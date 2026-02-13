@@ -15,6 +15,7 @@ import { DealClosedModal } from '@/components/vendor/DealClosedModal';
 import { VendorReviewClientModal } from '@/components/vendor/VendorReviewClientModal';
 import { DeleteAccountModal } from '@/components/vendor/DeleteAccountModal';
 import { VendorProposalModal } from '@/components/vendor/VendorProposalModal';
+import { VendorSentQuotesSection } from '@/components/vendor/VendorSentQuotesSection';
 import { supabase } from '@/integrations/supabase/client';
 import { MEI_PLAN_PRICE, EMPRESARIAL_PLAN_PRICE, STRIPE_MEI_PLAN, STRIPE_EMPRESARIAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -731,6 +732,9 @@ function DashboardContent() {
             })}
           </div>
         )}
+
+        {/* Sent Quotes Section (vendor as buyer) */}
+        {user && <VendorSentQuotesSection userId={user.id} />}
 
         {/* Danger Zone - Delete Account */}
         <Card className="mt-8 border-destructive/30">
