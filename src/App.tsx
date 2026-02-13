@@ -31,6 +31,7 @@ const App = () => (
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Index />} />
+            <Route path="/fornecedor/:slug" element={<VendorProfile />} />
             <Route path="/vendor/:id" element={<VendorProfile />} />
             <Route path="/dashboard" element={<VendorDashboard />} />
             <Route path="/minha-conta" element={<ClientDashboard />} />

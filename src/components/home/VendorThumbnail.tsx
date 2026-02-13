@@ -5,6 +5,7 @@ interface Vendor {
   id: string;
   profile_id: string;
   business_name: string;
+  slug?: string | null;
   category: string;
   description: string | null;
   neighborhood: string | null;
@@ -21,7 +22,7 @@ export function VendorThumbnail({ vendor }: VendorThumbnailProps) {
 
   return (
     <Link 
-      to={`/vendor/${vendor.profile_id}`}
+      to={vendor.slug ? `/fornecedor/${vendor.slug}` : `/vendor/${vendor.profile_id}`}
       className="group block"
     >
       <div className="relative aspect-square overflow-hidden rounded-xl shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-medium">

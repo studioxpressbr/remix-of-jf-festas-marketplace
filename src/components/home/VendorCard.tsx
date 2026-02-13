@@ -11,6 +11,7 @@ interface Vendor {
   id: string;
   profile_id: string;
   business_name: string;
+  slug?: string | null;
   category: string;
   description: string | null;
   neighborhood: string | null;
@@ -38,7 +39,7 @@ export const VendorCard = React.forwardRef<HTMLAnchorElement, VendorCardProps>(
     const hasRating = (vendor.avg_rating ?? 0) > 0;
 
     return (
-      <Link ref={ref} to={`/vendor/${vendor.profile_id}`}>
+      <Link ref={ref} to={vendor.slug ? `/fornecedor/${vendor.slug}` : `/vendor/${vendor.profile_id}`}>
         <Card className="group overflow-hidden border-0 bg-gradient-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-medium">
           <div className={cn('relative overflow-hidden', heightClass)}>
             {randomImage ? (

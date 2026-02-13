@@ -57,7 +57,7 @@ interface ReviewData {
 }
 
 function VendorProfileContent() {
-  const { id } = useParams<{ id: string }>();
+  const { slug, id: legacyId } = useParams<{ slug?: string; id?: string }>();
   const navigate = useNavigate();
   const { user, profile } = useAuthContext();
   const { isAdmin, loading: adminLoading } = useAdminRole();
@@ -141,25 +141,46 @@ function VendorProfileContent() {
   };
 
   const fetchVendor = useCallback(async () => {
-    if (!id || adminLoading) return;
+    if ((!slug && !legacyId) || adminLoading) return;
 
     let data, error;
 
-    if (isAdmin) {
+    if (isAdmin && legacyId) {
       // Admin pode ver qualquer vendor com dados de contato (RLS permite)
       const result = await supabase
         .from('vendors')
         .select('*, profiles(full_name, email, whatsapp)')
-        .eq('profile_id', id)
+        .eq('profile_id', legacyId)
         .maybeSingle();
       data = result.data;
       error = result.error;
-    } else {
-      // Usuários normais só veem vendors aprovados
+    } else if (slug) {
+      // Buscar por slug na view pública
       const result = await supabase
         .from('vendors_public' as any)
         .select('*, profiles(full_name)')
-        .eq('profile_id', id)
+        .eq('slug', slug)
+        .maybeSingle();
+      data = result.data;
+      error = result.error;
+
+      // Se admin, buscar dados completos com o profile_id encontrado
+      if (!error && data && isAdmin) {
+        const fullResult = await supabase
+          .from('vendors')
+          .select('*, profiles(full_name, email, whatsapp)')
+          .eq('profile_id', (data as any).profile_id)
+          .maybeSingle();
+        if (!fullResult.error && fullResult.data) {
+          data = fullResult.data;
+        }
+      }
+    } else if (legacyId) {
+      // Fallback: buscar por profile_id (URL antiga)
+      const result = await supabase
+        .from('vendors_public' as any)
+        .select('*, profiles(full_name)')
+        .eq('profile_id', legacyId)
         .maybeSingle();
       data = result.data;
       error = result.error;
@@ -200,7 +221,7 @@ function VendorProfileContent() {
       const avg = mapped.reduce((sum: number, r: ReviewData) => sum + r.rating, 0) / mapped.length;
       setAvgRating(avg);
     }
-  }, [id, navigate, isAdmin, adminLoading]);
+  }, [slug, legacyId, navigate, isAdmin, adminLoading]);
 
   useEffect(() => {
     fetchVendor();
