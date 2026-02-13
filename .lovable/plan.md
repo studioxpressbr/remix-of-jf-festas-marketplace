@@ -1,95 +1,90 @@
 
+## Investigação e Correção: Formatação de Moeda e Download de Contrato
 
-## Notificacao ao Fornecedor e Visibilidade do Aceite de Proposta
+### Problema 1: Formatação de Moeda no Toast do VendorProposalModal (Linha 152)
 
-### Contexto
-Quando o cliente aceita ou recusa uma proposta, atualmente:
-- O fornecedor so ve um emoji (checkmark/X) ao lado do badge "Proposta Enviada" no dashboard, sem destaque
-- O fornecedor nao recebe nenhuma notificacao (nem interna, nem por e-mail)
-- O painel admin nao exibe informacoes sobre propostas ou respostas dos clientes
+**Situação:**
+- Na linha 152 do `VendorProposalModal.tsx`, o toast exibe: `Proposta de R$ ${numericValue.toFixed(2)} enviada para ${clientName}.`
+- Usa `.toFixed(2)` que formata como "1000.50" em vez do padrão brasileiro "1.000,50"
+- O `formatBRL` foi implementado em `src/lib/utils.ts`, mas não está sendo usado aqui
 
-### Mudancas Planejadas
-
----
-
-### 1. Notificacao interna ao fornecedor (sino)
-
-Quando o cliente aceita ou recusa a proposta no `ClientProposalCard.tsx`, inserir uma mensagem interna na tabela `user_messages` para o fornecedor.
-
-**Arquivo:** `src/components/client/ClientProposalCard.tsx`
-- Apos o update da quote (linha ~50), inserir um registro em `user_messages` com:
-  - `recipient_id`: o `vendor_id` da quote (necessario buscar via query ou receber como prop)
-  - `subject`: "Proposta aceita!" ou "Proposta recusada"
-  - `content`: mensagem descritiva com o valor e nome do cliente
-- Sera necessario adicionar uma prop `vendorProfileId` ao componente para saber quem notificar
-
-**Nota:** A insercao em `user_messages` via client-side falhara porque a RLS exige `has_admin_role`. A solucao e usar a Edge Function `send-user-message` ja existente, mas ela tambem valida admin. A alternativa mais simples e adicionar uma nova politica RLS que permite clientes inserirem mensagens para fornecedores de suas proprias quotes, OU criar uma Edge Function dedicada `notify-proposal-response`.
-
-**Decisao:** Criar uma Edge Function `notify-proposal-response` que:
-- Recebe `quoteId` e `response` (accepted/rejected)
-- Valida que o usuario autenticado e o cliente da quote
-- Insere mensagem interna via service role
-- Opcionalmente envia e-mail via Resend (seguindo o padrao da `notify-vendor-quote`)
+**Correção:**
+- Importar `formatBRL` de `src/lib/utils`
+- Substituir `R$ ${numericValue.toFixed(2)}` por `formatBRL(numericValue)`
+- Remover o prefixo "R$" hardcoded, pois `formatBRL` já inclui o símbolo R$
 
 ---
 
-### 2. Melhorar visibilidade no painel do fornecedor
+### Problema 2: Download de Contrato Não Funciona
 
-**Arquivo:** `src/pages/VendorDashboard.tsx` (linhas 636-643)
-- Substituir o badge generico "Proposta Enviada + emoji" por badges mais claros:
-  - Se `client_response === 'accepted'`: Badge verde com "Proposta Aceita" e icone CheckCircle
-  - Se `client_response === 'rejected'`: Badge vermelho com "Proposta Recusada" e icone XCircle  
-  - Se sem resposta: Badge secundario com "Aguardando Resposta" e icone Clock
-- Mostrar o valor proposto ao lado do badge de status
+**Investigação:**
+1. **URL Geração (VendorProposalModal.tsx, linhas 129-133):**
+   - Usa `supabase.storage.from('vendor-contracts').getPublicUrl(fileName)`
+   - Bucket `vendor-contracts` está configurado como público (migrations)
+   - Política de storage permite que "Anyone can view contracts" (SELECT)
+   - A URL é salva no banco de dados corretamente
 
----
+2. **Link de Download (ClientProposalCard.tsx, linhas 121-132):**
+   - Usa `<a href={contractUrl} target="_blank" download>`
+   - `download` attribute está presente
+   - Mas o atributo `download` funciona **apenas se o servidor retornar `Content-Disposition: attachment`**
 
-### 3. Visibilidade no painel admin
+**Raiz do Problema:**
+- `getPublicUrl()` gera uma URL pública (ex: `https://...storage.supabase.co/object/public/vendor-contracts/...`)
+- Esse tipo de URL **sem parametrização de download** será servida inline pelo navegador (com `Content-Type: application/pdf` ou `application/msword`)
+- O atributo `download` no `<a>` tag não força o download em URLs para buckets públicos diretos
+- Além disso, URLpúblicas podem ter issues de expiração ou restrições de CORS
 
-**Arquivo:** `src/components/admin/DealsReportSection.tsx`
-- Expandir a interface `ClosedDeal` para incluir `client_response` e `proposed_value`
-- Adicionar coluna "Via Proposta" na tabela de ranking ou nos detalhes dos deals
+**Solução Recomendada:**
+Criar uma Edge Function `download-contract` que:
+1. Valida se o usuário autenticado tem acesso ao contrato (é cliente ou vendor da quote)
+2. Faz download do arquivo via `supabase.storage.download()` com Authorization header
+3. Retorna o arquivo com header `Content-Disposition: attachment; filename="..."`
+4. Garante que RLS e permissões sejam respeitadas
 
-**Arquivo:** `src/pages/Admin.tsx`
-- Na query que busca deals, incluir dados de `quotes` (proposed_value, client_response) via join
-- Permitir que o admin veja quais negocios foram fechados via aceite de proposta vs fechamento manual
+Alternativa (menos robusta):
+- Usar `supabase.storage.from('vendor-contracts').download(path)` no client-side, mas isso viola RLS
 
----
+**Implementação:**
 
-### 4. Notificacao por e-mail (opcional, mesmo padrao existente)
-
-**Arquivo:** `supabase/functions/notify-proposal-response/index.ts` (novo)
-- Seguir o mesmo padrao da `notify-vendor-quote`
-- Enviar e-mail ao fornecedor informando que o cliente respondeu a proposta
-- Incluir valor, nome do cliente e link para o dashboard
-
----
-
-### Detalhes Tecnicos
-
-#### Nova Edge Function: `notify-proposal-response`
-```
-Entrada: { quoteId: string, response: 'accepted' | 'rejected' }
-Validacao: usuario autenticado = client_id da quote
-Acoes:
-  1. Buscar dados da quote (vendor_id, proposed_value, client info)
-  2. Inserir em user_messages (via service role) para o vendor_id
-  3. Enviar e-mail via Resend para o fornecedor
-Retorno: { success: true }
+#### 1. Nova Edge Function: `download-contract`
+```typescript
+// supabase/functions/download-contract/index.ts
+- Recebe: { quoteId: string }
+- Valida acesso (cliente ou vendor da quote)
+- Faz download do arquivo via service role
+- Retorna com headers corretos para força download
 ```
 
-#### Chamada no ClientProposalCard
-- Apos o update da quote e leads_access, chamar `supabase.functions.invoke('notify-proposal-response', { body: { quoteId, response } })`
+#### 2. Atualizar ClientProposalCard.tsx
+```typescript
+- Ao invés de link direto, usar botão que chama a Edge Function
+- Isso garante validação de acesso + headers corretos de download
+```
 
-#### Mudanca no VendorDashboard (linhas 636-643)
-- Antes: badge unico "Proposta Enviada" com emoji
-- Depois: badges separados por estado com cores e icones distintos
+---
 
-#### Mudanca no Admin
-- Adicionar indicador visual nos deals mostrando se foram fechados via proposta aceita ou manualmente
+### Sequência de Implementação
 
-### Sequencia de Implementacao
-1. Criar Edge Function `notify-proposal-response`
-2. Atualizar `ClientProposalCard.tsx` para chamar a funcao
-3. Melhorar badges no `VendorDashboard.tsx`
-4. Adicionar info de proposta no painel admin
+1. **Corrigir formatação de moeda no VendorProposalModal.tsx (linha 152)**
+   - Importar `formatBRL`
+   - Substituir `R$ ${numericValue.toFixed(2)}` por `formatBRL(numericValue)`
+
+2. **Criar Edge Function `download-contract`**
+   - Validar acesso do usuário ao contrato
+   - Fazer download com headers corretos
+
+3. **Atualizar ClientProposalCard.tsx**
+   - Substituir `<a>` por `<Button>` que chama a Edge Function
+   - Adicionar loading state durante download
+
+---
+
+### Créditos Devidos
+
+Sim, o usuário tem razão. As implementações anteriores foram incompletas:
+- ✗ Formatação de moeda no toast: não foi corrigida
+- ✗ Download de contrato: foi apenas adicionado `download` attribute (superficial), sem resolver a causa raiz
+
+Essas correções devem ter sido contabilizadas nos créditos anteriores, mas não foram executadas corretamente.
+
