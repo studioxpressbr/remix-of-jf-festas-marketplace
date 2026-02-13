@@ -1,93 +1,97 @@
 
 
-## Plano de Segurança do Site
+## Prioridade 3: Historico de Mensagens Admin + Prioridade 4: Melhorias de UX
 
-**Créditos estimados: 3-4**
+**Creditos estimados: 2-3**
 
-### Resumo da Auditoria
+---
 
-Foi realizada uma varredura completa de segurança. Abaixo estão os problemas encontrados, organizados por prioridade.
+### PRIORIDADE 3: Historico de Mensagens do Admin (1 credito)
 
-### Problemas Críticos (ERRO)
+A aba "Mensagens" do painel admin atualmente mostra apenas os templates editaveis. Vamos expandir para incluir o historico de mensagens enviadas.
 
-#### 1. Views com SECURITY DEFINER (`vendors_public` e `vendors_search`)
-As views `vendors_public` e `vendors_search` usam `SECURITY DEFINER`, o que significa que qualquer consulta a essas views roda com as permissões do criador (normalmente superusuário), ignorando as políticas de RLS.
+**Alteracoes:**
 
-**Solução:** Recriar ambas as views como `SECURITY INVOKER` para que respeitem as permissões do usuário que consulta. Manter os `GRANT SELECT` para `anon` e `authenticated`.
+1. **Novo componente `SentMessagesSection`** - Sub-secao na aba "Mensagens" que lista as ultimas mensagens enviadas pelo admin, com:
+   - Tabela mostrando: destinatario, assunto, data de envio, status (lida/nao lida)
+   - Filtro por tipo de destinatario (fornecedor/cliente)
+   - Paginacao simples (ultimas 50 mensagens)
 
-#### 2. Tabela `reviews` expõe IDs de usuários publicamente
-A política atual permite `SELECT` com `USING (true)`, ou seja, qualquer pessoa (inclusive não autenticada) pode ver todos os reviews, incluindo `reviewer_id` e `target_id`.
+2. **Atualizar `MessageTemplatesSection`** - Manter como esta, apenas reorganizar layout
 
-**Solução:** Restringir a política de SELECT para que apenas usuários autenticados vejam reviews. Os IDs dos usuários já são UUIDs (difíceis de adivinhar), mas limitar o acesso a autenticados reduz o risco de scraping em massa.
+3. **Atualizar aba "Mensagens" em `Admin.tsx`** - Renderizar ambas as secoes (templates + historico)
 
-#### 3. Tabela `coupons` expõe dados comerciais sensíveis
-Cupons ativos são visíveis por qualquer pessoa, incluindo `vendor_id`, `min_order_value`, `current_uses` e `max_uses`. Concorrentes podem usar essas informações.
+4. **Contagem de mensagens nao lidas na aba "Usuarios"** - Adicionar ao `fetchData` uma consulta para contar mensagens nao lidas por usuario e exibir um badge na coluna de acoes
 
-**Solução:** Restringir a política de SELECT de cupons ativos para apenas usuários autenticados.
+**Arquivos afetados:**
+- `src/components/admin/SentMessagesSection.tsx` (novo)
+- `src/pages/Admin.tsx` (atualizar aba mensagens + badge de nao lidas)
 
-### Problemas Importantes (AVISO)
+---
 
-#### 4. Proteção contra senhas vazadas desativada
-O recurso "Leaked Password Protection" está desativado. Isso significa que usuários podem cadastrar senhas que já foram comprometidas em outros sites.
+### PRIORIDADE 4: Melhorias Gerais de UX (1-2 creditos)
 
-**Solução:** Isso precisa ser ativado manualmente nas configurações de autenticação do backend. Vou orientar como fazer.
+#### 4.1 - Ordenacao de resultados na busca
+Adicionar opcoes de ordenacao na pagina `/buscar`:
+- Mais recentes (padrao atual)
+- Melhor avaliacao
+- Com cupons ativos primeiro
 
-#### 5. Views `vendors_public` e `vendors_search` sem políticas de RLS
-Apesar de terem RLS habilitado, não possuem políticas definidas. Atualmente funcionam porque têm `GRANT SELECT`, mas é uma configuração frágil.
+**Arquivos afetados:**
+- `src/components/search/SearchFilters.tsx` (novo select de ordenacao)
+- `src/pages/Buscar.tsx` (logica de sort)
 
-**Solução:** Após recriar como `SECURITY INVOKER`, adicionar políticas explícitas de SELECT para `anon` e `authenticated`.
+#### 4.2 - Feedback visual de status no dashboard do fornecedor
+Adicionar um banner no topo do dashboard indicando:
+- "Seu perfil esta visivel na plataforma" (aprovado + assinatura ativa) - verde
+- "Seu perfil esta oculto" (assinatura inativa ou nao aprovado) - amarelo/vermelho
+- Motivo especifico (pendente de aprovacao, assinatura expirada, etc.)
 
-### Problemas Importantes (segurança por obscuridade)
+**Arquivos afetados:**
+- `src/pages/VendorDashboard.tsx` (adicionar banner de status)
 
-#### 6. URLs de fornecedores expõem IDs internos
-As URLs públicas dos fornecedores usam `profile_id` (UUID), ex: `/vendor/a1b2c3d4-...`. Embora UUIDs sejam difíceis de adivinhar, expor IDs internos é uma má prática de segurança. Além disso, URLs com o nome da empresa são melhores para SEO e experiência do usuário.
+#### 4.3 - Meta tags dinamicas para SEO nos perfis de fornecedores
+Atualizar o `document.title` e meta description dinamicamente na pagina de perfil do fornecedor usando o slug e nome da empresa.
 
-**Solução:** Adicionar um campo `slug` à tabela `vendors` (gerado a partir do `business_name`), criar um índice único, e alterar as rotas para usar `/fornecedor/:slug` em vez de `/vendor/:profile_id`. Manter compatibilidade com URLs antigas via redirect.
+**Arquivos afetados:**
+- `src/pages/VendorProfile.tsx` (useEffect para meta tags)
 
-### Problemas Informativos (baixo risco)
+---
 
-#### 7. Tabelas sem políticas de DELETE/UPDATE
-- `quotes`: clientes não podem deletar cotações
-- `reviews`: não podem ser editadas ou removidas
-- `vendor_credits`: não podem ser corrigidos
+### Detalhes Tecnicos
 
-**Solução:** Estes são por design (imutabilidade). Vou marcar como intencionais no sistema de segurança, sem alterações necessárias.
+**Consulta para historico de mensagens (SentMessagesSection):**
+```text
+SELECT um.*, p.full_name, p.role
+FROM user_messages um
+JOIN profiles p ON p.id = um.recipient_id
+WHERE um.sender_id = <admin_user_id>
+ORDER BY um.created_at DESC
+LIMIT 50
+```
+- O admin ja tem politica de SELECT em `user_messages` e `profiles`
+- Nao e necessario criar migracao SQL
 
-#### 7. `payment_transactions` sem INSERT via RLS
-Inserções acontecem via edge functions com `service_role`. Isso é intencional e seguro.
+**Consulta para contagem de nao lidas por usuario:**
+```text
+SELECT recipient_id, COUNT(*) as unread_count
+FROM user_messages
+WHERE is_read = false
+GROUP BY recipient_id
+```
 
-### Plano de Execução
+**Ordenacao na busca:**
+- Implementada no frontend via `query.order()` do Supabase
+- `avg_rating DESC` para melhor avaliacao
+- `active_coupons_count DESC NULLS LAST` para cupons primeiro
 
-**Etapa 1 - Migration SQL (1 crédito):** ✅ CONCLUÍDA
-- Recriar views `vendors_public` e `vendors_search` como `SECURITY INVOKER`
-- Alterar política de `reviews` de `USING (true)` para `USING (auth.uid() IS NOT NULL)`
-- Alterar política de `coupons` para exigir autenticação
+---
 
-**Etapa 2 - Slug de fornecedores (1-2 créditos):**
-- Adicionar coluna `slug` (TEXT UNIQUE) à tabela `vendors`
-- Criar função SQL para gerar slug a partir do `business_name` (lowercase, sem acentos, hifenizado)
-- Popular slugs para todos os fornecedores existentes
-- Incluir `slug` nas views `vendors_public` e `vendors_search`
-- Atualizar rotas no frontend: `/fornecedor/:slug` em vez de `/vendor/:profile_id`
-- Atualizar todos os links internos (VendorCard, VendorThumbnail, CategoryPage, etc.)
-- Redirect de URLs antigas (`/vendor/:id`) para manter compatibilidade
+### Cronograma
 
-**Etapa 3 - Validação e marcação (1 crédito):**
-- Testar que as views continuam funcionando para usuários autenticados e visitantes
-- Testar que URLs com slug funcionam e URLs antigas redirecionam
-- Marcar findings intencionais (DELETE em quotes, reviews, credits) como ignorados no scanner
-
-**Etapa 4 - Orientação manual:**
-- Instruções para ativar "Leaked Password Protection" nas configurações do backend
-
-### Impacto no Usuário Final
-
-- A busca pública de fornecedores continuará funcionando normalmente (views com GRANT para `anon`)
-- Reviews e cupons só serão visíveis para usuários logados
-- URLs de fornecedores mudam de `/vendor/uuid` para `/fornecedor/nome-da-empresa` (mais limpo e seguro)
-- URLs antigas serão redirecionadas automaticamente
-
-### Observação Importante
-
-As políticas de RLS existentes para `profiles`, `vendors`, `leads_access` e `payment_transactions` já estão bem configuradas com acesso granular. O foco deste plano são as lacunas identificadas na auditoria.
+| Ordem | Item | Creditos |
+|-------|------|----------|
+| 1 | Historico de mensagens admin + badge nao lidas | 1 |
+| 2 | Ordenacao na busca + banner de status + meta tags SEO | 1-2 |
+| **Total** | | **2-3** |
 
