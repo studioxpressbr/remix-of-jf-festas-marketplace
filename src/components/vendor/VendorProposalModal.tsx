@@ -38,6 +38,35 @@ export function VendorProposalModal({
 }: VendorProposalModalProps) {
   const [value, setValue] = useState('');
   const [message, setMessage] = useState('');
+
+  const formatMonetaryValue = (raw: string): string => {
+    // Keep only digits and comma
+    let cleaned = raw.replace(/[^\d,]/g, '');
+    
+    // Allow only one comma
+    const parts = cleaned.split(',');
+    if (parts.length > 2) {
+      cleaned = parts[0] + ',' + parts.slice(1).join('');
+    }
+    
+    let integerPart = parts[0] || '';
+    const decimalPart = parts[1]?.substring(0, 2) ?? '';
+
+    // Remove leading zeros
+    integerPart = integerPart.replace(/^0+(?=\d)/, '');
+
+    // Add thousand separators
+    integerPart = integerPart.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+    if (parts.length > 1) {
+      return `${integerPart},${decimalPart}`;
+    }
+    return integerPart;
+  };
+
+  const handleValueChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setValue(formatMonetaryValue(e.target.value));
+  };
   const [contractFile, setContractFile] = useState<File | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -150,14 +179,19 @@ export function VendorProposalModal({
         <div className="space-y-4">
           <div className="space-y-2">
             <Label htmlFor="proposal-value">Valor (R$) *</Label>
-            <Input
-              id="proposal-value"
-              type="text"
-              inputMode="decimal"
-              placeholder="0,00"
-              value={value}
-              onChange={(e) => setValue(e.target.value)}
-            />
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">R$</span>
+              <Input
+                id="proposal-value"
+                type="text"
+                inputMode="decimal"
+                placeholder="0,00"
+                value={value}
+                onChange={handleValueChange}
+                maxLength={20}
+                className="pl-10"
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
