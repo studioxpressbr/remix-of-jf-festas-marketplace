@@ -1,97 +1,107 @@
 
 
-## Prioridade 3: Historico de Mensagens Admin + Prioridade 4: Melhorias de UX
+## Funcionalidade: Cotacao com Proposta de Valor + Anexo de Contrato
 
-**Creditos estimados: 2-3**
-
----
-
-### PRIORIDADE 3: Historico de Mensagens do Admin (1 credito)
-
-A aba "Mensagens" do painel admin atualmente mostra apenas os templates editaveis. Vamos expandir para incluir o historico de mensagens enviadas.
-
-**Alteracoes:**
-
-1. **Novo componente `SentMessagesSection`** - Sub-secao na aba "Mensagens" que lista as ultimas mensagens enviadas pelo admin, com:
-   - Tabela mostrando: destinatario, assunto, data de envio, status (lida/nao lida)
-   - Filtro por tipo de destinatario (fornecedor/cliente)
-   - Paginacao simples (ultimas 50 mensagens)
-
-2. **Atualizar `MessageTemplatesSection`** - Manter como esta, apenas reorganizar layout
-
-3. **Atualizar aba "Mensagens" em `Admin.tsx`** - Renderizar ambas as secoes (templates + historico)
-
-4. **Contagem de mensagens nao lidas na aba "Usuarios"** - Adicionar ao `fetchData` uma consulta para contar mensagens nao lidas por usuario e exibir um badge na coluna de acoes
-
-**Arquivos afetados:**
-- `src/components/admin/SentMessagesSection.tsx` (novo)
-- `src/pages/Admin.tsx` (atualizar aba mensagens + badge de nao lidas)
+Esta funcionalidade permite que o fornecedor, ao enviar uma proposta para o cliente, inclua um valor, uma mensagem opcional e, opcionalmente, um arquivo de contrato (PDF ou documento).
 
 ---
 
-### PRIORIDADE 4: Melhorias Gerais de UX (1-2 creditos)
+### Fluxo Completo
 
-#### 4.1 - Ordenacao de resultados na busca
-Adicionar opcoes de ordenacao na pagina `/buscar`:
-- Mais recentes (padrao atual)
-- Melhor avaliacao
-- Com cupons ativos primeiro
+```text
+Cliente solicita cotacao (ja existe)
+        |
+Fornecedor desbloqueia lead (ja existe)
+        |
+Fornecedor envia proposta:
+  - Valor (R$) obrigatorio
+  - Mensagem opcional
+  - Contrato em anexo (PDF/DOC, opcional, max 10MB)
+        |
+Cliente recebe e visualiza proposta + download do contrato
+        |
+Cliente aceita ou recusa
+```
 
-**Arquivos afetados:**
-- `src/components/search/SearchFilters.tsx` (novo select de ordenacao)
-- `src/pages/Buscar.tsx` (logica de sort)
+---
 
-#### 4.2 - Feedback visual de status no dashboard do fornecedor
-Adicionar um banner no topo do dashboard indicando:
-- "Seu perfil esta visivel na plataforma" (aprovado + assinatura ativa) - verde
-- "Seu perfil esta oculto" (assinatura inativa ou nao aprovado) - amarelo/vermelho
-- Motivo especifico (pendente de aprovacao, assinatura expirada, etc.)
+### Alteracoes Necessarias
 
-**Arquivos afetados:**
-- `src/pages/VendorDashboard.tsx` (adicionar banner de status)
+#### 1. Novo Bucket de Storage: `vendor-contracts`
 
-#### 4.3 - Meta tags dinamicas para SEO nos perfis de fornecedores
-Atualizar o `document.title` e meta description dinamicamente na pagina de perfil do fornecedor usando o slug e nome da empresa.
+Bucket publico para armazenar os contratos enviados pelos fornecedores. Politica RLS permitindo upload por usuarios autenticados e leitura publica.
 
-**Arquivos afetados:**
-- `src/pages/VendorProfile.tsx` (useEffect para meta tags)
+#### 2. Migracao SQL
+
+Adicionar colunas na tabela `quotes`:
+
+- `proposed_value` (numeric, nullable) - valor proposto
+- `proposal_message` (text, nullable) - mensagem opcional
+- `proposed_at` (timestamptz, nullable) - data da proposta
+- `contract_url` (text, nullable) - URL do contrato anexado
+- `client_response` (text, nullable) - 'accepted' ou 'rejected'
+- `client_responded_at` (timestamptz, nullable) - data da resposta
+
+Atualizar RLS de `quotes`: fornecedores precisam de UPDATE nas colunas de proposta; clientes precisam de UPDATE para registrar resposta.
+
+#### 3. Componente: Modal de Proposta do Fornecedor
+
+Novo `VendorProposalModal.tsx`:
+- Campo de valor (R$) com mascara monetaria
+- Campo de mensagem (textarea, opcional)
+- Botao de upload de contrato (PDF/DOC/DOCX, max 10MB, opcional)
+- Preview do arquivo selecionado com opcao de remover
+- Upload vai para o bucket `vendor-contracts`
+- Ao salvar: atualiza `quotes` com valor, mensagem, URL do contrato e status `proposed`
+
+#### 4. Interface de Resposta do Cliente
+
+No `ClientDashboard.tsx`, secao de propostas recebidas:
+- Exibe valor proposto, mensagem, data
+- Link de download do contrato (se anexado)
+- Botoes "Aceitar" e "Recusar"
+- Aceitar: atualiza status para `completed`, `deal_closed = true`, `deal_value` automatico
+- Recusar: registra `client_response = 'rejected'`
+
+#### 5. Atualizacao dos Dashboards
+
+- **VendorDashboard**: botao "Enviar Proposta" para leads desbloqueados; badge "Proposta Enviada" com indicador de contrato anexado
+- **ClientDashboard**: secao destacada para propostas pendentes; historico de respostas
+
+#### 6. Notificacao (opcional)
+
+Edge function para notificar o cliente por e-mail quando recebe uma proposta.
+
+---
+
+### Estimativa de Creditos
+
+| Item | Creditos |
+|------|----------|
+| Migracao SQL (colunas + enum + RLS + bucket) | 0.5 |
+| Modal de proposta com upload de contrato | 1.5 |
+| Interface de resposta do cliente | 1 |
+| Atualizacao dos dashboards + status | 1 |
+| Edge function de notificacao (opcional) | 0.5 |
+| **Total** | **3-5** |
 
 ---
 
 ### Detalhes Tecnicos
 
-**Consulta para historico de mensagens (SentMessagesSection):**
-```text
-SELECT um.*, p.full_name, p.role
-FROM user_messages um
-JOIN profiles p ON p.id = um.recipient_id
-WHERE um.sender_id = <admin_user_id>
-ORDER BY um.created_at DESC
-LIMIT 50
-```
-- O admin ja tem politica de SELECT em `user_messages` e `profiles`
-- Nao e necessario criar migracao SQL
+**Upload de contrato:**
+- Bucket `vendor-contracts` (publico, similar ao `vendor-images`)
+- Tipos aceitos: PDF, DOC, DOCX
+- Tamanho maximo: 10MB
+- Nome do arquivo gerado com timestamp para evitar colisoes
+- Padrao de upload identico ao usado em `ImageUpload.tsx` (Supabase Storage SDK)
 
-**Consulta para contagem de nao lidas por usuario:**
-```text
-SELECT recipient_id, COUNT(*) as unread_count
-FROM user_messages
-WHERE is_read = false
-GROUP BY recipient_id
-```
+**Validacao:**
+- Valor proposto: numero positivo, obrigatorio
+- Contrato: validacao de tipo MIME (application/pdf, application/msword, application/vnd.openxmlformats-officedocument.wordprocessingml.document)
+- Mensagem: max 500 caracteres
 
-**Ordenacao na busca:**
-- Implementada no frontend via `query.order()` do Supabase
-- `avg_rating DESC` para melhor avaliacao
-- `active_coupons_count DESC NULLS LAST` para cupons primeiro
-
----
-
-### Cronograma
-
-| Ordem | Item | Creditos |
-|-------|------|----------|
-| 1 | Historico de mensagens admin + badge nao lidas | 1 |
-| 2 | Ordenacao na busca + banner de status + meta tags SEO | 1-2 |
-| **Total** | | **2-3** |
+**RLS adicional:**
+- Fornecedores podem fazer UPDATE em `quotes` apenas para colunas de proposta, quando `vendor_id = auth.uid()`
+- Clientes podem fazer UPDATE apenas em `client_response` e `client_responded_at`, quando `client_id = auth.uid()`
 
