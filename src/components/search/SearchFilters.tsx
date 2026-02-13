@@ -144,22 +144,24 @@ export function SearchFilters({
       </div>
 
       {/* Rating Slider */}
-      <div className="space-y-3">
+      <div className="space-y-3 pb-2">
         <Label className="flex items-center gap-2 text-sm font-medium">
           <Star className="h-4 w-4" />
-          Avaliação mínima: {minRating > 0 ? `${minRating} ⭐` : 'Qualquer'}
+          Avaliação mínima: {minRating > 0 ? `${minRating} estrela${minRating > 1 ? 's' : ''}` : 'Qualquer'}
         </Label>
-        <Slider
-          value={[minRating]}
-          onValueChange={(values) => setMinRating(values[0])}
-          max={5}
-          min={0}
-          step={1}
-          className="w-full"
-        />
+        <div className="px-1 py-2">
+          <Slider
+            value={[minRating]}
+            onValueChange={(values) => setMinRating(values[0])}
+            max={5}
+            min={0}
+            step={1}
+            className="w-full"
+          />
+        </div>
         <div className="flex justify-between text-xs text-muted-foreground">
           <span>Qualquer</span>
-          <span>5 ⭐</span>
+          <span>5 estrelas</span>
         </div>
       </div>
 
