@@ -39,6 +39,7 @@ function SearchPage() {
   const [selectedNeighborhood, setSelectedNeighborhood] = useState(searchParams.get('bairro') || 'all');
   const [hasCoupons, setHasCoupons] = useState(searchParams.get('cupons') === '1');
   const [minRating, setMinRating] = useState(Number(searchParams.get('avaliacao')) || 0);
+  const [sortBy, setSortBy] = useState(searchParams.get('ordem') || 'recent');
   
   // Data states
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -95,8 +96,9 @@ function SearchPage() {
     if (selectedNeighborhood && selectedNeighborhood !== 'all') params.set('bairro', selectedNeighborhood);
     if (hasCoupons) params.set('cupons', '1');
     if (minRating > 0) params.set('avaliacao', String(minRating));
+    if (sortBy && sortBy !== 'recent') params.set('ordem', sortBy);
     setSearchParams(params, { replace: true });
-  }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating, setSearchParams]);
+  }, [searchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating, sortBy, setSearchParams]);
 
   // Debounce search term
   useEffect(() => {
@@ -147,11 +149,20 @@ function SearchPage() {
       query = query.gte('avg_rating', minRating);
     }
 
-    const { data } = await query.order('created_at', { ascending: false });
+    // Sort
+    if (sortBy === 'rating') {
+      query = query.order('avg_rating', { ascending: false, nullsFirst: false });
+    } else if (sortBy === 'coupons') {
+      query = query.order('active_coupons_count', { ascending: false, nullsFirst: false });
+    } else {
+      query = query.order('created_at', { ascending: false });
+    }
+
+    const { data } = await query;
     setVendors((data as unknown as Vendor[]) || []);
     setLoading(false);
     setInitialLoad(false);
-  }, [debouncedSearchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating]);
+  }, [debouncedSearchTerm, selectedCategory, selectedNeighborhood, hasCoupons, minRating, sortBy]);
 
   // Auto-search when any filter changes
   useEffect(() => {
@@ -165,6 +176,7 @@ function SearchPage() {
     setSelectedNeighborhood('all');
     setHasCoupons(false);
     setMinRating(0);
+    setSortBy('recent');
   };
 
   const hasActiveFilters = Boolean(
@@ -201,6 +213,8 @@ function SearchPage() {
             setHasCoupons={setHasCoupons}
             minRating={minRating}
             setMinRating={setMinRating}
+            sortBy={sortBy}
+            setSortBy={setSortBy}
             neighborhoods={neighborhoods}
             categories={categories}
             onClearFilters={clearFilters}

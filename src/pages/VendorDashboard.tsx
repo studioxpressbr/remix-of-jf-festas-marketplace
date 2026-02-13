@@ -363,6 +363,34 @@ function DashboardContent() {
           </Card>
         ) : (
           <>
+            {/* Profile Visibility Banner */}
+            {vendorInfo && (
+              <div className={cn(
+                'mb-6 flex items-center gap-3 rounded-lg border px-4 py-3',
+                vendorInfo.is_approved && vendorInfo.subscription_status === 'active'
+                  ? 'border-sage/30 bg-sage/10 text-sage'
+                  : 'border-coral/30 bg-coral/10 text-coral'
+              )}>
+                {vendorInfo.is_approved && vendorInfo.subscription_status === 'active' ? (
+                  <>
+                    <CheckCircle className="h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">
+                      ✅ Seu perfil está visível na plataforma. Clientes podem encontrar e solicitar cotações.
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <AlertCircle className="h-5 w-5 shrink-0" />
+                    <p className="text-sm font-medium">
+                      {!vendorInfo.is_approved
+                        ? '⏳ Seu perfil está oculto — aguardando aprovação do administrador.'
+                        : '⚠️ Seu perfil está oculto — ative sua assinatura para aparecer na plataforma.'}
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Two-column layout for subscription and credits */}
             <div className="mb-8 grid gap-6 md:grid-cols-2">
               {/* Subscription Status Card */}

@@ -31,6 +31,7 @@ import { DeactivateUserModal } from '@/components/admin/DeactivateUserModal';
 import { AddBonusCreditsModal } from '@/components/admin/AddBonusCreditsModal';
 import { SendMessageModal } from '@/components/admin/SendMessageModal';
 import { MessageTemplatesSection } from '@/components/admin/MessageTemplatesSection';
+import { SentMessagesSection } from '@/components/admin/SentMessagesSection';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -981,7 +982,10 @@ function AdminContent() {
           </TabsContent>
 
           <TabsContent value="messages">
-            <MessageTemplatesSection />
+            <div className="space-y-8">
+              <MessageTemplatesSection />
+              <SentMessagesSection />
+            </div>
           </TabsContent>
 
           <TabsContent value="deals">

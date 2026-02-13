@@ -227,6 +227,43 @@ function VendorProfileContent() {
     fetchVendor();
   }, [fetchVendor]);
 
+  // Dynamic SEO meta tags
+  useEffect(() => {
+    if (!vendor) return;
+    const catLabel = VENDOR_CATEGORIES.find(c => c.value === vendor.category)?.label || vendor.category;
+    const title = `${vendor.business_name} - ${catLabel} | JF Festas`;
+    const description = vendor.description
+      ? vendor.description.slice(0, 155)
+      : `${vendor.business_name} - ${catLabel}${vendor.neighborhood ? ` em ${vendor.neighborhood}` : ''}. Solicite uma cotação no JF Festas.`;
+
+    document.title = title;
+
+    const setMeta = (name: string, content: string) => {
+      let el = document.querySelector(`meta[name="${name}"]`) || document.querySelector(`meta[property="${name}"]`);
+      if (!el) {
+        el = document.createElement('meta');
+        if (name.startsWith('og:')) {
+          el.setAttribute('property', name);
+        } else {
+          el.setAttribute('name', name);
+        }
+        document.head.appendChild(el);
+      }
+      el.setAttribute('content', content);
+    };
+
+    setMeta('description', description);
+    setMeta('og:title', title);
+    setMeta('og:description', description);
+    if (vendor.images?.[0]) {
+      setMeta('og:image', vendor.images[0]);
+    }
+
+    return () => {
+      document.title = 'JF Festas - Encontre fornecedores para sua festa';
+    };
+  }, [vendor]);
+
   const handleQuoteClick = () => {
     if (!user) {
       setAuthModalOpen(true);
