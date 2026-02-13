@@ -530,6 +530,7 @@ export type Database = {
           description: string | null
           id: string
           images: string[] | null
+          instagram_url: string | null
           is_approved: boolean
           neighborhood: string | null
           profile_id: string
@@ -554,6 +555,7 @@ export type Database = {
           description?: string | null
           id?: string
           images?: string[] | null
+          instagram_url?: string | null
           is_approved?: boolean
           neighborhood?: string | null
           profile_id: string
@@ -578,6 +580,7 @@ export type Database = {
           description?: string | null
           id?: string
           images?: string[] | null
+          instagram_url?: string | null
           is_approved?: boolean
           neighborhood?: string | null
           profile_id?: string
@@ -619,6 +622,7 @@ export type Database = {
           description: string | null
           id: string | null
           images: string[] | null
+          instagram_url: string | null
           is_approved: boolean | null
           neighborhood: string | null
           profile_id: string | null
@@ -638,6 +642,7 @@ export type Database = {
           description?: string | null
           id?: string | null
           images?: string[] | null
+          instagram_url?: string | null
           is_approved?: boolean | null
           neighborhood?: string | null
           profile_id?: string | null
@@ -657,6 +662,7 @@ export type Database = {
           description?: string | null
           id?: string | null
           images?: string[] | null
+          instagram_url?: string | null
           is_approved?: boolean | null
           neighborhood?: string | null
           profile_id?: string | null
@@ -697,6 +703,7 @@ export type Database = {
           description: string | null
           id: string | null
           images: string[] | null
+          instagram_url: string | null
           is_approved: boolean | null
           neighborhood: string | null
           profile_id: string | null

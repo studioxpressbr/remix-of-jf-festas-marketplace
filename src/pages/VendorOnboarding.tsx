@@ -62,6 +62,18 @@ const vendorFormSchema = z.object({
     .trim()
     .min(2, 'Bairro é obrigatório')
     .max(100, 'Bairro deve ter no máximo 100 caracteres'),
+  website_url: z
+    .string()
+    .trim()
+    .url('Digite uma URL válida')
+    .or(z.literal('')),
+  instagram_url: z
+    .string()
+    .trim()
+    .refine(
+      (val) => val === '' || /^https:\/\/(www\.)?instagram\.com\/[a-zA-Z0-9_.]+\/?$/.test(val),
+      'Digite uma URL válida do Instagram'
+    ),
   images: z.array(z.string()).min(1, 'Adicione pelo menos 1 imagem'),
   terms_accepted: z.literal(true, {
     errorMap: () => ({ message: 'Você deve aceitar os termos' }),
@@ -93,6 +105,8 @@ function OnboardingContent() {
       custom_category: '',
       description: '',
       neighborhood: '',
+      website_url: '',
+      instagram_url: '',
       images: [],
       terms_accepted: undefined,
     },
@@ -190,6 +204,8 @@ function OnboardingContent() {
         custom_category: data.category === 'outros' ? data.custom_category : null,
         description: data.description,
         neighborhood: data.neighborhood,
+        website_url: data.website_url || null,
+        instagram_url: data.instagram_url || null,
         images: data.images,
         approval_status: 'pending',
         submitted_at: new Date().toISOString(),
@@ -434,6 +450,41 @@ function OnboardingContent() {
                             <FormDescription>
                               {field.value?.length || 0}/500 caracteres
                             </FormDescription>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="website_url"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Site (opcional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Ex: https://www.seu-site.com"
+                                type="url"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="instagram_url"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Instagram (opcional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Ex: https://instagram.com/seu_perfil"
+                                {...field}
+                              />
+                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
