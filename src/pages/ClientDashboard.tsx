@@ -21,6 +21,7 @@ import {
   Star,
 } from 'lucide-react';
 import { format } from 'date-fns';
+import { StarRating } from '@/components/ui/star-rating';
 import { ptBR } from 'date-fns/locale';
 
 interface LeadAccess {
@@ -70,6 +71,8 @@ export default function ClientDashboard() {
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [reviewModalOpen, setReviewModalOpen] = useState(false);
   const [selectedQuoteForReview, setSelectedQuoteForReview] = useState<Quote | null>(null);
+  const [avgRating, setAvgRating] = useState(0);
+  const [reviewCount, setReviewCount] = useState(0);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -83,8 +86,26 @@ export default function ClientDashboard() {
   useEffect(() => {
     if (user) {
       fetchQuotes();
+      fetchClientRating();
     }
   }, [user]);
+
+  const fetchClientRating = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('reviews')
+        .select('rating')
+        .eq('target_id', user.id);
+      if (data && data.length > 0) {
+        const avg = data.reduce((acc, r) => acc + r.rating, 0) / data.length;
+        setAvgRating(avg);
+        setReviewCount(data.length);
+      }
+    } catch (error) {
+      console.error('Error fetching client rating:', error);
+    }
+  };
 
   const fetchQuotes = async () => {
     if (!user) return;
@@ -219,6 +240,16 @@ export default function ClientDashboard() {
                 <div>
                   <p className="text-sm text-muted-foreground">WhatsApp</p>
                   <p className="font-medium">{profile.whatsapp || '-'}</p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-primary/10">
+                  <Star className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Avaliação</p>
+                  <StarRating rating={avgRating} reviewCount={reviewCount} size="md" />
                 </div>
               </div>
             </CardContent>
