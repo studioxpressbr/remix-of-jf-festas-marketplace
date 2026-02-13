@@ -267,6 +267,8 @@ function VendorProfileContent() {
   const handleQuoteClick = () => {
     if (!user) {
       setAuthModalOpen(true);
+    } else if (user.id === vendor?.profile_id) {
+      toast.error('Você não pode solicitar cotação para si mesmo');
     } else {
       setQuoteModalOpen(true);
     }
