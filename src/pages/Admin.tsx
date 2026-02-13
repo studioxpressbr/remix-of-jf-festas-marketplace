@@ -230,7 +230,7 @@ function AdminContent() {
     // Fetch closed deals for report
     const { data: dealsData } = await supabase
       .from('leads_access')
-      .select('vendor_id, deal_value, deal_closed_at, quote_id, profiles!leads_access_vendor_id_fkey(full_name, email)')
+      .select('vendor_id, deal_value, deal_closed_at, quote_id, profiles!leads_access_vendor_id_fkey(full_name, email), quotes!leads_access_quote_id_fkey(client_response, proposed_value)')
       .eq('deal_closed', true);
 
     if (dealsData) {
@@ -241,6 +241,7 @@ function AdminContent() {
           deal_closed_at: string | null;
           quote_id: string;
           profiles: { full_name: string; email: string | null } | null;
+          quotes: { client_response: string | null; proposed_value: number | null } | null;
         }>).map((d) => ({
           vendor_id: d.vendor_id,
           vendor_name: d.profiles?.full_name ?? 'Desconhecido',
@@ -248,6 +249,8 @@ function AdminContent() {
           deal_value: d.deal_value,
           deal_closed_at: d.deal_closed_at,
           quote_id: d.quote_id,
+          client_response: d.quotes?.client_response ?? null,
+          proposed_value: d.quotes?.proposed_value ?? null,
         }))
       );
     }

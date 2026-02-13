@@ -73,6 +73,15 @@ export function ClientProposalCard({
             : `Você recusou a proposta de ${vendorName}.`,
       });
 
+      // Notify vendor (internal message + email)
+      try {
+        await supabase.functions.invoke('notify-proposal-response', {
+          body: { quoteId, response },
+        });
+      } catch (notifyError) {
+        console.error('Error notifying vendor:', notifyError);
+      }
+
       onSuccess();
     } catch (error) {
       console.error('Error responding to proposal:', error);

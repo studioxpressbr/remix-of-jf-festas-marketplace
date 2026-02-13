@@ -21,6 +21,8 @@ import {
   TrendingUp,
   Hash,
   Gift,
+  FileCheck,
+  HandCoins,
 } from 'lucide-react';
 
 export interface ClosedDeal {
@@ -30,6 +32,8 @@ export interface ClosedDeal {
   deal_value: number | null;
   deal_closed_at: string | null;
   quote_id: string;
+  client_response: string | null;
+  proposed_value: number | null;
 }
 
 interface VendorRanking {
@@ -38,6 +42,7 @@ interface VendorRanking {
   deal_count: number;
   total_value: number;
   avg_ticket: number;
+  proposal_deals: number;
 }
 
 interface DealsReportSectionProps {
@@ -91,10 +96,12 @@ export function DealsReportSection({ deals, onBonusClick }: DealsReportSectionPr
     for (const deal of filteredDeals) {
       const existing = map.get(deal.vendor_id);
       const value = deal.deal_value ?? 0;
+      const isProposal = deal.client_response === 'accepted' ? 1 : 0;
       if (existing) {
         existing.deal_count++;
         existing.total_value += value;
         existing.avg_ticket = existing.total_value / existing.deal_count;
+        existing.proposal_deals += isProposal;
       } else {
         map.set(deal.vendor_id, {
           vendor_id: deal.vendor_id,
@@ -102,6 +109,7 @@ export function DealsReportSection({ deals, onBonusClick }: DealsReportSectionPr
           deal_count: 1,
           total_value: value,
           avg_ticket: value,
+          proposal_deals: isProposal,
         });
       }
     }
@@ -242,6 +250,7 @@ export function DealsReportSection({ deals, onBonusClick }: DealsReportSectionPr
                   <TableHead className="text-center">Negócios</TableHead>
                   <TableHead className="text-right">Valor Total</TableHead>
                   <TableHead className="text-right">Ticket Médio</TableHead>
+                  <TableHead className="text-center">Via Proposta</TableHead>
                   <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
@@ -260,6 +269,16 @@ export function DealsReportSection({ deals, onBonusClick }: DealsReportSectionPr
                     </TableCell>
                     <TableCell className="text-right font-mono">
                       {formatCurrency(v.avg_ticket)}
+                    </TableCell>
+                    <TableCell className="text-center">
+                      {v.proposal_deals > 0 ? (
+                        <Badge variant="outline" className="text-xs gap-1">
+                          <FileCheck className="h-3 w-3" />
+                          {v.proposal_deals}
+                        </Badge>
+                      ) : (
+                        <span className="text-muted-foreground text-xs">—</span>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button

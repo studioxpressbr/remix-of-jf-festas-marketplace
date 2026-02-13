@@ -38,6 +38,7 @@ import {
   Trash2,
   DollarSign,
   Send,
+  Clock,
 } from 'lucide-react';
 import { cn, formatBRL } from '@/lib/utils';
 import { StarRating } from '@/components/ui/star-rating';
@@ -634,12 +635,29 @@ function DashboardContent() {
                                 </Button>
                               )}
                               {!dealClosed && (quote as any).proposed_at && (
-                                <Badge variant="secondary" className="text-xs">
-                                  <Send className="mr-1 h-3 w-3" />
-                                  Proposta Enviada
-                                  {(quote as any).client_response === 'accepted' && ' ✅'}
-                                  {(quote as any).client_response === 'rejected' && ' ❌'}
-                                </Badge>
+                                <>
+                                  {(quote as any).client_response === 'accepted' ? (
+                                    <Badge className="text-xs bg-green-600 hover:bg-green-600/90">
+                                      <CheckCircle className="mr-1 h-3 w-3" />
+                                      Proposta Aceita
+                                    </Badge>
+                                  ) : (quote as any).client_response === 'rejected' ? (
+                                    <Badge variant="destructive" className="text-xs">
+                                      <AlertCircle className="mr-1 h-3 w-3" />
+                                      Proposta Recusada
+                                    </Badge>
+                                  ) : (
+                                    <Badge variant="secondary" className="text-xs">
+                                      <Clock className="mr-1 h-3 w-3" />
+                                      Aguardando Resposta
+                                    </Badge>
+                                  )}
+                                  {(quote as any).proposed_value && (
+                                    <span className="text-xs font-medium text-muted-foreground">
+                                      {formatBRL((quote as any).proposed_value)}
+                                    </span>
+                                  )}
+                                </>
                               )}
                               {!dealClosed && leadAccess && (
                                 <Button
