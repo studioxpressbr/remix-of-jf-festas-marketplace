@@ -1,66 +1,95 @@
 
 
-## Ajustes na Funcionalidade de Propostas e Dashboard
+## Notificacao ao Fornecedor e Visibilidade do Aceite de Proposta
 
-### Problema 1: Simbolo "$" duplicado no valor
+### Contexto
+Quando o cliente aceita ou recusa uma proposta, atualmente:
+- O fornecedor so ve um emoji (checkmark/X) ao lado do badge "Proposta Enviada" no dashboard, sem destaque
+- O fornecedor nao recebe nenhuma notificacao (nem interna, nem por e-mail)
+- O painel admin nao exibe informacoes sobre propostas ou respostas dos clientes
 
-Nos dois paineis (fornecedor e cliente), o valor do negocio fechado e exibido com `R$ {dealValue?.toFixed(2)}` e na proposta com `R$ {proposedValue.toFixed(2)}`. O metodo `.toFixed(2)` nao formata no padrao brasileiro. Alem disso, o badge de "deal closed" no painel do fornecedor (linha 575) mostra `R$ 750.45` ao inves de `R$ 750,45`.
+### Mudancas Planejadas
 
-**Solucao:** Criar uma funcao utilitaria `formatBRL(value: number)` em `src/lib/utils.ts` que usa `Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' })` e aplicar em:
-- `VendorDashboard.tsx` (badge de deal closed, linha 575)
-- `ClientProposalCard.tsx` (exibicao do valor proposto, linha ~90, e toast de aceitacao)
-- Remover o prefixo "R$" hardcoded nesses locais, pois o `Intl.NumberFormat` ja inclui
+---
 
-### Problema 2: Download de contrato nao funciona
+### 1. Notificacao interna ao fornecedor (sino)
 
-A URL do contrato esta salva corretamente no banco (confirmado via query). O componente `ClientProposalCard.tsx` usa um link `<a>` com `target="_blank"`. O problema pode ser:
-- O bucket `vendor-contracts` esta configurado como publico, entao a URL deveria funcionar
-- O arquivo pode ter sido enviado em ambiente de teste e nao estar acessivel
+Quando o cliente aceita ou recusa a proposta no `ClientProposalCard.tsx`, inserir uma mensagem interna na tabela `user_messages` para o fornecedor.
 
-**Solucao:** Verificar se o link esta sendo renderizado corretamente no componente. Vou tambem adicionar um atributo `download` ao link e melhorar o tratamento de erro caso o arquivo nao esteja disponivel. Adicionalmente, validar que a URL gerada pelo `getPublicUrl` esta correta.
+**Arquivo:** `src/components/client/ClientProposalCard.tsx`
+- Apos o update da quote (linha ~50), inserir um registro em `user_messages` com:
+  - `recipient_id`: o `vendor_id` da quote (necessario buscar via query ou receber como prop)
+  - `subject`: "Proposta aceita!" ou "Proposta recusada"
+  - `content`: mensagem descritiva com o valor e nome do cliente
+- Sera necessario adicionar uma prop `vendorProfileId` ao componente para saber quem notificar
 
-### Problema 3: Campo de proposta mais largo que o modal
+**Nota:** A insercao em `user_messages` via client-side falhara porque a RLS exige `has_admin_role`. A solucao e usar a Edge Function `send-user-message` ja existente, mas ela tambem valida admin. A alternativa mais simples e adicionar uma nova politica RLS que permite clientes inserirem mensagens para fornecedores de suas proprias quotes, OU criar uma Edge Function dedicada `notify-proposal-response`.
 
-O `VendorProposalModal.tsx` usa `DialogContent` com classe `sm:max-w-md`. O campo de input com o container `relative` e o prefixo "R$" pode estar causando overflow. 
+**Decisao:** Criar uma Edge Function `notify-proposal-response` que:
+- Recebe `quoteId` e `response` (accepted/rejected)
+- Valida que o usuario autenticado e o cliente da quote
+- Insere mensagem interna via service role
+- Opcionalmente envia e-mail via Resend (seguindo o padrao da `notify-vendor-quote`)
 
-**Solucao:** Garantir que o input respeite `w-full` com `overflow-hidden` no container. Revisar se ha algum estilo que faz o campo escapar dos limites do modal. Adicionar `overflow-hidden` ao `DialogContent` se necessario.
+---
 
-### Problema 4: Estrelas do cliente nao aparecem para o fornecedor
+### 2. Melhorar visibilidade no painel do fornecedor
 
-Quando o fornecedor desbloqueia um lead, ele ve o nome, WhatsApp e e-mail do cliente, mas nao ve a avaliacao (estrelas) do cliente. Isso e importante para decidir se quer enviar uma proposta.
+**Arquivo:** `src/pages/VendorDashboard.tsx` (linhas 636-643)
+- Substituir o badge generico "Proposta Enviada + emoji" por badges mais claros:
+  - Se `client_response === 'accepted'`: Badge verde com "Proposta Aceita" e icone CheckCircle
+  - Se `client_response === 'rejected'`: Badge vermelho com "Proposta Recusada" e icone XCircle  
+  - Se sem resposta: Badge secundario com "Aguardando Resposta" e icone Clock
+- Mostrar o valor proposto ao lado do badge de status
 
-**Solucao:** No `VendorDashboard.tsx`, ao carregar as cotacoes, buscar tambem as avaliacoes recebidas por cada cliente (`reviews` onde `target_id = client_id`). Exibir o `StarRating` ao lado do nome do cliente na area de contato desbloqueado.
+---
+
+### 3. Visibilidade no painel admin
+
+**Arquivo:** `src/components/admin/DealsReportSection.tsx`
+- Expandir a interface `ClosedDeal` para incluir `client_response` e `proposed_value`
+- Adicionar coluna "Via Proposta" na tabela de ranking ou nos detalhes dos deals
+
+**Arquivo:** `src/pages/Admin.tsx`
+- Na query que busca deals, incluir dados de `quotes` (proposed_value, client_response) via join
+- Permitir que o admin veja quais negocios foram fechados via aceite de proposta vs fechamento manual
+
+---
+
+### 4. Notificacao por e-mail (opcional, mesmo padrao existente)
+
+**Arquivo:** `supabase/functions/notify-proposal-response/index.ts` (novo)
+- Seguir o mesmo padrao da `notify-vendor-quote`
+- Enviar e-mail ao fornecedor informando que o cliente respondeu a proposta
+- Incluir valor, nome do cliente e link para o dashboard
 
 ---
 
 ### Detalhes Tecnicos
 
-#### Arquivo: `src/lib/utils.ts`
-- Adicionar funcao `formatBRL(value: number): string`
+#### Nova Edge Function: `notify-proposal-response`
+```
+Entrada: { quoteId: string, response: 'accepted' | 'rejected' }
+Validacao: usuario autenticado = client_id da quote
+Acoes:
+  1. Buscar dados da quote (vendor_id, proposed_value, client info)
+  2. Inserir em user_messages (via service role) para o vendor_id
+  3. Enviar e-mail via Resend para o fornecedor
+Retorno: { success: true }
+```
 
-#### Arquivo: `src/pages/VendorDashboard.tsx`
-- Importar `formatBRL` e `StarRating`
-- Na secao de contato desbloqueado (linhas 543-565), adicionar uma linha com `StarRating` mostrando a avaliacao do cliente
-- Buscar avaliacoes dos clientes no `fetchData` (query em `reviews` agrupando por `target_id`)
-- Substituir `R$ ${dealValue?.toFixed(2)}` por `formatBRL(dealValue)`
+#### Chamada no ClientProposalCard
+- Apos o update da quote e leads_access, chamar `supabase.functions.invoke('notify-proposal-response', { body: { quoteId, response } })`
 
-#### Arquivo: `src/components/client/ClientProposalCard.tsx`
-- Importar `formatBRL`
-- Substituir `R$ ${proposedValue.toFixed(2)}` por `formatBRL(proposedValue)` em todos os locais
-- Melhorar link de download do contrato
+#### Mudanca no VendorDashboard (linhas 636-643)
+- Antes: badge unico "Proposta Enviada" com emoji
+- Depois: badges separados por estado com cores e icones distintos
 
-#### Arquivo: `src/components/vendor/VendorProposalModal.tsx`
-- Revisar CSS do container do input para evitar overflow
+#### Mudanca no Admin
+- Adicionar indicador visual nos deals mostrando se foram fechados via proposta aceita ou manualmente
 
----
-
-### Estimativa de Creditos
-
-| Ajuste | Creditos |
-|--------|----------|
-| Funcao formatBRL + correcao de exibicao de valores | 0.5 |
-| Investigacao e correcao do download de contrato | 0.5 |
-| Correcao de layout do modal de proposta | 0.5 |
-| Estrelas do cliente vissiveis ao fornecedor | 1.0 |
-| **Total** | **2.5** |
-
+### Sequencia de Implementacao
+1. Criar Edge Function `notify-proposal-response`
+2. Atualizar `ClientProposalCard.tsx` para chamar a funcao
+3. Melhorar badges no `VendorDashboard.tsx`
+4. Adicionar info de proposta no painel admin
