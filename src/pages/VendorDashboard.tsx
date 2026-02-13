@@ -14,6 +14,7 @@ import { VendorCouponsSection } from '@/components/vendor/VendorCouponsSection';
 import { DealClosedModal } from '@/components/vendor/DealClosedModal';
 import { VendorReviewClientModal } from '@/components/vendor/VendorReviewClientModal';
 import { DeleteAccountModal } from '@/components/vendor/DeleteAccountModal';
+import { VendorProposalModal } from '@/components/vendor/VendorProposalModal';
 import { supabase } from '@/integrations/supabase/client';
 import { MEI_PLAN_PRICE, EMPRESARIAL_PLAN_PRICE, STRIPE_MEI_PLAN, STRIPE_EMPRESARIAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -36,6 +37,7 @@ import {
   Star,
   Trash2,
   DollarSign,
+  Send,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -118,7 +120,10 @@ function DashboardContent() {
     clientName: string;
     eventDate: string;
   } | null>(null);
-
+  const [proposalModal, setProposalModal] = useState<{
+    quoteId: string;
+    clientName: string;
+  } | null>(null);
   const fetchCredits = async (userId: string) => {
     // Fetch credit balance and transactions
     const { data: creditsData } = await supabase
@@ -575,7 +580,28 @@ function DashboardContent() {
                                 Liberado
                               </Badge>
                             )}
-                            <div className="flex gap-2 mt-2">
+                            <div className="flex flex-wrap gap-2 mt-2">
+                              {!dealClosed && leadAccess && !(quote as any).proposed_at && (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => setProposalModal({
+                                    quoteId: quote.id,
+                                    clientName: quote.profiles?.full_name || 'Cliente',
+                                  })}
+                                >
+                                  <Send className="mr-2 h-4 w-4" />
+                                  Enviar Proposta
+                                </Button>
+                              )}
+                              {!dealClosed && (quote as any).proposed_at && (
+                                <Badge variant="secondary" className="text-xs">
+                                  <Send className="mr-1 h-3 w-3" />
+                                  Proposta Enviada
+                                  {(quote as any).client_response === 'accepted' && ' ✅'}
+                                  {(quote as any).client_response === 'rejected' && ' ❌'}
+                                </Badge>
+                              )}
                               {!dealClosed && leadAccess && (
                                 <Button
                                   variant="outline"
@@ -740,6 +766,17 @@ function DashboardContent() {
             clientName={reviewModal.clientName}
             vendorId={user.id}
             eventDate={reviewModal.eventDate}
+            onSuccess={fetchData}
+          />
+        )}
+
+        {/* Proposal Modal */}
+        {proposalModal && (
+          <VendorProposalModal
+            open={!!proposalModal}
+            onOpenChange={(open) => !open && setProposalModal(null)}
+            quoteId={proposalModal.quoteId}
+            clientName={proposalModal.clientName}
             onSuccess={fetchData}
           />
         )}
