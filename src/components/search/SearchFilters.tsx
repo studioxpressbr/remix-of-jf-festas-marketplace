@@ -1,4 +1,4 @@
-import { Search, Filter, MapPin, Tag, Star, X } from 'lucide-react';
+import { Search, Filter, MapPin, Tag, Star, X, ArrowUpDown } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -38,6 +38,8 @@ interface SearchFiltersProps {
   setHasCoupons: (v: boolean) => void;
   minRating: number;
   setMinRating: (r: number) => void;
+  sortBy: string;
+  setSortBy: (s: string) => void;
   neighborhoods: string[];
   categories: Category[];
   onClearFilters: () => void;
@@ -56,6 +58,8 @@ export function SearchFilters({
   setHasCoupons,
   minRating,
   setMinRating,
+  sortBy,
+  setSortBy,
   neighborhoods,
   categories,
   onClearFilters,
@@ -163,6 +167,24 @@ export function SearchFilters({
           <span>Qualquer</span>
           <span>5 estrelas</span>
         </div>
+      </div>
+
+      {/* Sort Select */}
+      <div className="space-y-2">
+        <Label className="flex items-center gap-2 text-sm font-medium">
+          <ArrowUpDown className="h-4 w-4" />
+          Ordenar por
+        </Label>
+        <Select value={sortBy} onValueChange={setSortBy}>
+          <SelectTrigger>
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="recent">Mais recentes</SelectItem>
+            <SelectItem value="rating">Melhor avaliação</SelectItem>
+            <SelectItem value="coupons">Com cupons ativos</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Search Button */}
