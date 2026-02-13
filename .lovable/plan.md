@@ -37,9 +37,16 @@ Apesar de terem RLS habilitado, não possuem políticas definidas. Atualmente fu
 
 **Solução:** Após recriar como `SECURITY INVOKER`, adicionar políticas explícitas de SELECT para `anon` e `authenticated`.
 
+### Problemas Importantes (segurança por obscuridade)
+
+#### 6. URLs de fornecedores expõem IDs internos
+As URLs públicas dos fornecedores usam `profile_id` (UUID), ex: `/vendor/a1b2c3d4-...`. Embora UUIDs sejam difíceis de adivinhar, expor IDs internos é uma má prática de segurança. Além disso, URLs com o nome da empresa são melhores para SEO e experiência do usuário.
+
+**Solução:** Adicionar um campo `slug` à tabela `vendors` (gerado a partir do `business_name`), criar um índice único, e alterar as rotas para usar `/fornecedor/:slug` em vez de `/vendor/:profile_id`. Manter compatibilidade com URLs antigas via redirect.
+
 ### Problemas Informativos (baixo risco)
 
-#### 6. Tabelas sem políticas de DELETE/UPDATE
+#### 7. Tabelas sem políticas de DELETE/UPDATE
 - `quotes`: clientes não podem deletar cotações
 - `reviews`: não podem ser editadas ou removidas
 - `vendor_credits`: não podem ser corrigidos
@@ -51,23 +58,34 @@ Inserções acontecem via edge functions com `service_role`. Isso é intencional
 
 ### Plano de Execução
 
-**Etapa 1 - Migration SQL (1 crédito):**
+**Etapa 1 - Migration SQL (1 crédito):** ✅ CONCLUÍDA
 - Recriar views `vendors_public` e `vendors_search` como `SECURITY INVOKER`
 - Alterar política de `reviews` de `USING (true)` para `USING (auth.uid() IS NOT NULL)`
 - Alterar política de `coupons` para exigir autenticação
 
-**Etapa 2 - Validação e marcação (1 crédito):**
-- Testar que as views continuam funcionando para usuários autenticados e visitantes (busca pública)
+**Etapa 2 - Slug de fornecedores (1-2 créditos):**
+- Adicionar coluna `slug` (TEXT UNIQUE) à tabela `vendors`
+- Criar função SQL para gerar slug a partir do `business_name` (lowercase, sem acentos, hifenizado)
+- Popular slugs para todos os fornecedores existentes
+- Incluir `slug` nas views `vendors_public` e `vendors_search`
+- Atualizar rotas no frontend: `/fornecedor/:slug` em vez de `/vendor/:profile_id`
+- Atualizar todos os links internos (VendorCard, VendorThumbnail, CategoryPage, etc.)
+- Redirect de URLs antigas (`/vendor/:id`) para manter compatibilidade
+
+**Etapa 3 - Validação e marcação (1 crédito):**
+- Testar que as views continuam funcionando para usuários autenticados e visitantes
+- Testar que URLs com slug funcionam e URLs antigas redirecionam
 - Marcar findings intencionais (DELETE em quotes, reviews, credits) como ignorados no scanner
 
-**Etapa 3 - Orientação manual:**
+**Etapa 4 - Orientação manual:**
 - Instruções para ativar "Leaked Password Protection" nas configurações do backend
 
 ### Impacto no Usuário Final
 
 - A busca pública de fornecedores continuará funcionando normalmente (views com GRANT para `anon`)
 - Reviews e cupons só serão visíveis para usuários logados
-- Nenhuma mudança visual no site
+- URLs de fornecedores mudam de `/vendor/uuid` para `/fornecedor/nome-da-empresa` (mais limpo e seguro)
+- URLs antigas serão redirecionadas automaticamente
 
 ### Observação Importante
 
