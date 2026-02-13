@@ -277,31 +277,49 @@ export type Database = {
       quotes: {
         Row: {
           client_id: string
+          client_responded_at: string | null
+          client_response: string | null
+          contract_url: string | null
           created_at: string
           description: string | null
           event_date: string
           id: string
           pax_count: number
+          proposal_message: string | null
+          proposed_at: string | null
+          proposed_value: number | null
           status: Database["public"]["Enums"]["quote_status"]
           vendor_id: string
         }
         Insert: {
           client_id: string
+          client_responded_at?: string | null
+          client_response?: string | null
+          contract_url?: string | null
           created_at?: string
           description?: string | null
           event_date: string
           id?: string
           pax_count: number
+          proposal_message?: string | null
+          proposed_at?: string | null
+          proposed_value?: number | null
           status?: Database["public"]["Enums"]["quote_status"]
           vendor_id: string
         }
         Update: {
           client_id?: string
+          client_responded_at?: string | null
+          client_response?: string | null
+          contract_url?: string | null
           created_at?: string
           description?: string | null
           event_date?: string
           id?: string
           pax_count?: number
+          proposal_message?: string | null
+          proposed_at?: string | null
+          proposed_value?: number | null
           status?: Database["public"]["Enums"]["quote_status"]
           vendor_id?: string
         }
@@ -764,7 +782,7 @@ export type Database = {
       admin_role: "admin" | "moderator" | "user"
       app_role: "vendor" | "client"
       payment_status: "pending" | "paid"
-      quote_status: "open" | "unlocked" | "completed" | "cancelled"
+      quote_status: "open" | "unlocked" | "proposed" | "completed" | "cancelled"
       subscription_status: "active" | "inactive" | "past_due"
       vendor_category:
         | "confeitaria"
@@ -914,7 +932,7 @@ export const Constants = {
       admin_role: ["admin", "moderator", "user"],
       app_role: ["vendor", "client"],
       payment_status: ["pending", "paid"],
-      quote_status: ["open", "unlocked", "completed", "cancelled"],
+      quote_status: ["open", "unlocked", "proposed", "completed", "cancelled"],
       subscription_status: ["active", "inactive", "past_due"],
       vendor_category: [
         "confeitaria",

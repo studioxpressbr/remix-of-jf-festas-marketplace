@@ -5,6 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Header } from '@/components/layout/Header';
 import { ClientEditProfileModal } from '@/components/client/ClientEditProfileModal';
 import { ClientReviewVendorModal } from '@/components/client/ClientReviewVendorModal';
+import { ClientProposalCard } from '@/components/client/ClientProposalCard';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,9 +37,15 @@ interface Quote {
   event_date: string;
   pax_count: number;
   description: string | null;
-  status: 'open' | 'unlocked' | 'completed' | 'cancelled';
+  status: 'open' | 'unlocked' | 'proposed' | 'completed' | 'cancelled';
   created_at: string;
   vendor_id: string;
+  proposed_value: number | null;
+  proposal_message: string | null;
+  proposed_at: string | null;
+  contract_url: string | null;
+  client_response: string | null;
+  client_responded_at: string | null;
   vendor: {
     business_name: string;
     category: string;
@@ -51,6 +58,7 @@ interface Quote {
 const statusLabels: Record<string, { label: string; variant: 'default' | 'secondary' | 'outline' | 'destructive' }> = {
   open: { label: 'Aguardando', variant: 'secondary' },
   unlocked: { label: 'Em Andamento', variant: 'default' },
+  proposed: { label: 'Proposta Recebida', variant: 'default' },
   completed: { label: 'Concluída', variant: 'outline' },
   cancelled: { label: 'Cancelada', variant: 'destructive' },
 };
@@ -121,7 +129,13 @@ export default function ClientDashboard() {
           description,
           status,
           created_at,
-          vendor_id
+          vendor_id,
+          proposed_value,
+          proposal_message,
+          proposed_at,
+          contract_url,
+          client_response,
+          client_responded_at
         `)
         .eq('client_id', user.id)
         .order('created_at', { ascending: false });
@@ -289,64 +303,81 @@ export default function ClientDashboard() {
                   {quotes.map((quote) => (
                     <div
                       key={quote.id}
-                      className="flex flex-col gap-3 rounded-lg border p-4 transition-colors hover:bg-muted/50 sm:flex-row sm:items-center sm:justify-between"
+                      className="rounded-lg border p-4 transition-colors hover:bg-muted/50 space-y-3"
                     >
-                      <div className="flex-1 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium">
-                            {quote.vendor?.business_name || 'Fornecedor'}
-                          </h3>
-                          <Badge variant="outline" className="text-xs">
-                            {categoryLabels[quote.vendor?.category || 'outros']}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex-1 space-y-1">
+                          <div className="flex items-center gap-2">
+                            <h3 className="font-medium">
+                              {quote.vendor?.business_name || 'Fornecedor'}
+                            </h3>
+                            <Badge variant="outline" className="text-xs">
+                              {categoryLabels[quote.vendor?.category || 'outros']}
+                            </Badge>
+                          </div>
+                          {quote.description && (
+                            <p className="text-sm text-muted-foreground line-clamp-1">
+                              {quote.description}
+                            </p>
+                          )}
+                          <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3.5 w-3.5" />
+                              {format(new Date(quote.event_date), "dd 'de' MMM, yyyy", {
+                                locale: ptBR,
+                              })}
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Users className="h-3.5 w-3.5" />
+                              {quote.pax_count} pessoas
+                            </span>
+                            <span className="flex items-center gap-1">
+                              <Clock className="h-3.5 w-3.5" />
+                              Enviada em{' '}
+                              {format(new Date(quote.created_at), 'dd/MM/yyyy', {
+                                locale: ptBR,
+                              })}
+                            </span>
+                          </div>
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
+                          {/* Review button */}
+                          {quote.leadAccess?.deal_closed &&
+                            new Date(quote.event_date) < new Date() &&
+                            !quote.hasReview && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1"
+                                onClick={() => {
+                                  setSelectedQuoteForReview(quote);
+                                  setReviewModalOpen(true);
+                                }}
+                              >
+                                <Star className="h-3.5 w-3.5" />
+                                Avaliar
+                              </Button>
+                            )}
+                          <Badge variant={statusLabels[quote.status]?.variant || 'secondary'}>
+                            {statusLabels[quote.status]?.label || quote.status}
                           </Badge>
                         </div>
-                        {quote.description && (
-                          <p className="text-sm text-muted-foreground line-clamp-1">
-                            {quote.description}
-                          </p>
-                        )}
-                        <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3.5 w-3.5" />
-                            {format(new Date(quote.event_date), "dd 'de' MMM, yyyy", {
-                              locale: ptBR,
-                            })}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Users className="h-3.5 w-3.5" />
-                            {quote.pax_count} pessoas
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3.5 w-3.5" />
-                            Enviada em{' '}
-                            {format(new Date(quote.created_at), 'dd/MM/yyyy', {
-                              locale: ptBR,
-                            })}
-                          </span>
-                        </div>
                       </div>
-                      <div className="flex flex-wrap items-center gap-2 sm:flex-nowrap">
-                        {/* Review button */}
-                        {quote.leadAccess?.deal_closed &&
-                          new Date(quote.event_date) < new Date() &&
-                          !quote.hasReview && (
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="gap-1"
-                              onClick={() => {
-                                setSelectedQuoteForReview(quote);
-                                setReviewModalOpen(true);
-                              }}
-                            >
-                              <Star className="h-3.5 w-3.5" />
-                              Avaliar
-                            </Button>
-                          )}
-                        <Badge variant={statusLabels[quote.status]?.variant || 'secondary'}>
-                          {statusLabels[quote.status]?.label || quote.status}
-                        </Badge>
-                      </div>
+
+                      {/* Proposal Card */}
+                      {quote.proposed_value && quote.proposed_at && (
+                        <ClientProposalCard
+                          quoteId={quote.id}
+                          vendorName={quote.vendor?.business_name || 'Fornecedor'}
+                          proposedValue={quote.proposed_value}
+                          proposalMessage={quote.proposal_message}
+                          proposedAt={quote.proposed_at}
+                          contractUrl={quote.contract_url}
+                          clientResponse={quote.client_response}
+                          clientRespondedAt={quote.client_responded_at}
+                          onSuccess={fetchQuotes}
+                        />
+                      )}
                     </div>
                   ))}
                 </div>
