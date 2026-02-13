@@ -24,3 +24,6 @@ content_path = "./templates/email_change.html"
 
 [functions.notify-proposal-response]
 verify_jwt = false
+
+[functions.download-contract]
+verify_jwt = false

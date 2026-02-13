@@ -6,6 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { DollarSign, FileText, Download, CheckCircle, XCircle, Loader2, MessageSquare } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { formatBRL } from '@/lib/utils';
 
 interface ClientProposalCardProps {
@@ -32,6 +33,7 @@ export function ClientProposalCard({
   onSuccess,
 }: ClientProposalCardProps) {
   const [responding, setResponding] = useState<'accepted' | 'rejected' | null>(null);
+  const [downloading, setDownloading] = useState(false);
   const { toast } = useToast();
 
   const handleRespond = async (response: 'accepted' | 'rejected') => {
@@ -119,17 +121,56 @@ export function ClientProposalCard({
       )}
 
       {contractUrl && (
-        <a
-          href={contractUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          download
-          className="inline-flex items-center gap-2 text-sm text-primary hover:underline"
+        <Button
+          variant="ghost"
+          size="sm"
+          disabled={downloading}
+          onClick={async () => {
+            setDownloading(true);
+            try {
+              const { data: sessionData } = await supabase.auth.getSession();
+              const response = await fetch(
+                `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/download-contract`,
+                {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${sessionData.session?.access_token}`,
+                    'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+                  },
+                  body: JSON.stringify({ quoteId }),
+                }
+              );
+              if (!response.ok) throw new Error('Download falhou');
+              const blob = await response.blob();
+              const contentDisposition = response.headers.get('Content-Disposition');
+              const fileNameMatch = contentDisposition?.match(/filename="(.+)"/);
+              const fileName = fileNameMatch?.[1] || 'contrato';
+              const url = URL.createObjectURL(blob);
+              const a = document.createElement('a');
+              a.href = url;
+              a.download = fileName;
+              document.body.appendChild(a);
+              a.click();
+              document.body.removeChild(a);
+              URL.revokeObjectURL(url);
+            } catch (error) {
+              console.error('Download error:', error);
+              toast({
+                title: 'Erro ao baixar contrato',
+                description: 'Tente novamente.',
+                variant: 'destructive',
+              });
+            } finally {
+              setDownloading(false);
+            }
+          }}
+          className="inline-flex items-center gap-2 text-sm text-primary hover:underline p-0 h-auto"
         >
           <FileText className="h-4 w-4" />
-          <Download className="h-3 w-3" />
-          Baixar contrato
-        </a>
+          {downloading ? <Loader2 className="h-3 w-3 animate-spin" /> : <Download className="h-3 w-3" />}
+          {downloading ? 'Baixando...' : 'Baixar contrato'}
+        </Button>
       )}
 
       {isPending ? (
