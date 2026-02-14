@@ -1,83 +1,56 @@
 
-## Fornecedor Tambem e Cliente (Nativamente)
 
-### Conceito
-Todo fornecedor autenticado pode solicitar cotacoes de outros fornecedores, sem precisar de outro role ou toggle. No dashboard do fornecedor, alem das "Cotacoes Recebidas" ja existentes, aparece uma nova aba "Minhas Cotacoes" mostrando as cotacoes que ele enviou como comprador.
+## Unificar Login em um Botao Unico
 
-### O que precisa mudar
+### Problema Atual
+- Header tem dois botoes: "Sou Cliente" e "Sou Fornecedor"
+- Ambos abrem o mesmo AuthModal, so muda o `mode`
+- Para LOGIN, o mode e irrelevante — o email ja determina o role
+- O mode so importa no CADASTRO (signup), para definir o role no perfil
 
----
+### Solucao
 
-### 1. RLS da tabela `quotes` (1 migracao)
+#### 1. Header: Botao unico "Entrar" (~1 credito)
+**Arquivo:** `src/components/layout/Header.tsx`
+- Remover os dois botoes "Sou Cliente" e "Sou Fornecedor"
+- Substituir por um unico botao "Entrar"
+- Abrir o AuthModal em modo login por padrao
+- No mobile menu, mesma mudanca: um botao "Entrar" ao inves de dois
 
-Atualmente, a politica de INSERT exige `auth.uid() = client_id`, mas a de SELECT para clientes (`Clients can view their own quotes`) e UPDATE (`Clients can update their own quotes`) verificam `auth.uid() = client_id` -- isso ja funciona para vendors tambem, pois checa apenas o uid.
+#### 2. AuthModal: Escolha de role apenas no cadastro (~1 credito)
+**Arquivo:** `src/components/auth/AuthModal.tsx`
+- Remover a prop `mode` obrigatoria — o modal gerencia internamente
+- Quando o usuario clica "Nao tem conta? Cadastre-se", mostrar opcao para escolher: "Sou Cliente" ou "Sou Fornecedor"
+- O login permanece identico (email + senha), sem mencao a role
+- O titulo do modal muda: login = "Entrar", cadastro = mostra escolha de role
+- Manter a prop `mode` como opcional para os CTAs do HeroSection que ja direcionam para cadastro especifico
 
-**Unica restricao real:** A politica de INSERT usa `WITH CHECK (auth.uid() = client_id)`, que ja permite qualquer usuario autenticado inserir desde que `client_id = auth.uid()`. Nao precisa alterar.
-
-**Verificacao necessaria:** Confirmar que a RLS da tabela `profiles` permite que vendors vejam perfis de outros vendors aprovados. Atualmente a politica "Clients can view vendor profiles" verifica `EXISTS(vendors WHERE profile_id = profiles.id AND is_approved AND subscription_status = 'active')` -- isso funciona para qualquer usuario autenticado, nao apenas clients.
-
-**Conclusao:** Nenhuma migracao de RLS necessaria! As politicas existentes ja permitem o fluxo.
-
----
-
-### 2. Impedir auto-cotacao (frontend)
-
-**Arquivo:** `src/pages/VendorProfile.tsx`
-- No `handleQuoteClick`, adicionar verificacao: se `user.id === vendor.profile_id`, mostrar toast "Voce nao pode solicitar cotacao para si mesmo" e nao abrir o modal.
-
----
-
-### 3. Nova aba "Minhas Cotacoes" no VendorDashboard
-
-**Arquivo:** `src/pages/VendorDashboard.tsx`
-- Adicionar uma query para buscar cotacoes onde `client_id = user.id` (cotacoes enviadas pelo vendor como comprador)
-- Adicionar uma secao/aba "Minhas Cotacoes (como comprador)" abaixo ou ao lado das cotacoes recebidas
-- Cada card mostra: nome do fornecedor, data do evento, numero de pessoas, status da proposta recebida
-- Se houver proposta do fornecedor, mostrar valor e botoes de aceitar/recusar (reutilizar logica do `ClientProposalCard`)
-
----
-
-### 4. Mostrar botao "Solicitar Cotacao" para vendors no perfil de outros vendors
-
-**Arquivo:** `src/pages/VendorProfile.tsx`
-- Atualmente o botao "Solicitar Cotacao" aparece para todos os usuarios logados (nao ha restricao por role)
-- Verificar que nao ha condicao escondida que bloqueia vendors -- ja verificado, `handleQuoteClick` so checa `!user`
-- Apenas adicionar a restricao de auto-cotacao (item 2)
-
----
-
-### Sequencia de Implementacao
-
-1. **Adicionar verificacao de auto-cotacao** no `VendorProfile.tsx` (~1 edicao simples)
-2. **Adicionar secao "Minhas Cotacoes"** no `VendorDashboard.tsx` com query e cards (~1-2 creditos)
-3. **Reutilizar/adaptar `ClientProposalCard`** para mostrar propostas recebidas pelo vendor-comprador (~1 credito)
-
-### Estimativa: ~3 creditos
+#### 3. HeroSection: Manter CTAs de cadastro (~0 creditos)
+**Arquivo:** `src/components/home/HeroSection.tsx`
+- Manter "Cadastrar Fornecedor" e "Sou Cliente" como estao — sao CTAs de marketing que direcionam para cadastro especifico
+- Esses botoes continuam passando o `mode` para o AuthModal, abrindo direto no cadastro com role pre-selecionado
 
 ### Detalhes Tecnicos
 
-#### Query para cotacoes enviadas (VendorDashboard)
+#### AuthModal: Nova interface da prop
 ```text
-supabase
-  .from('quotes')
-  .select('*, vendors!inner(business_name, images, slug)')
-  .eq('client_id', user.id)
-  .order('created_at', { ascending: false })
-```
-
-Nota: O join com `vendors` usa `quotes.vendor_id = vendors.profile_id` -- precisa verificar se o FK esta configurado corretamente ou usar uma subquery.
-
-#### Componente de card para cotacoes enviadas
-Reutilizar a estrutura visual do `ClientProposalCard` existente, adaptando para o contexto do vendor-comprador. Incluir:
-- Nome do fornecedor destino
-- Data do evento e numero de pessoas
-- Status (aberta, proposta recebida, aceita, recusada)
-- Botoes de aceitar/recusar proposta (mesma logica do ClientDashboard)
-
-#### Auto-cotacao
-```text
-if (user?.id === vendor.profile_id) {
-  toast.error('Voce nao pode solicitar cotacao para si mesmo');
-  return;
+interface AuthModalProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  mode?: 'client' | 'vendor';        // opcional agora
+  defaultToLogin?: boolean;           // novo: abrir em login por padrao
 }
 ```
+
+#### Fluxo do Login (via Header)
+1. Clica "Entrar" -> abre modal em modo login
+2. Preenche email + senha -> loga
+3. Se nao tem conta, clica "Cadastre-se" -> aparece escolha de role (cliente/fornecedor)
+4. Escolhe role -> preenche dados -> cadastra
+
+#### Fluxo do Cadastro (via HeroSection)
+1. Clica "Cadastrar Fornecedor" -> abre modal ja em modo cadastro com role = vendor
+2. Clica "Sou Cliente" -> abre modal ja em modo cadastro com role = client
+3. Fluxo identico ao atual
+
+### Estimativa: ~2 creditos
