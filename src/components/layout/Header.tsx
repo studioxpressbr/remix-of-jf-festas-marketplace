@@ -17,18 +17,7 @@ import logoJfFestas from '@/assets/logo-jffestas.webp';
 export function Header() {
   const { user, profile, signOut } = useAuthContext();
   const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authMode, setAuthMode] = useState<'client' | 'vendor'>('client');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-
-  const openVendorAuth = () => {
-    setAuthMode('vendor');
-    setAuthModalOpen(true);
-  };
-
-  const openClientAuth = () => {
-    setAuthMode('client');
-    setAuthModalOpen(true);
-  };
 
   return (
     <>
@@ -141,14 +130,9 @@ export function Header() {
                 </DropdownMenuContent>
               </DropdownMenu>
             ) : (
-              <>
-                <Button variant="ghost" size="sm" onClick={openClientAuth}>
-                  Sou Cliente
-                </Button>
-                <Button size="sm" className="bg-gradient-orange shadow-orange" onClick={openVendorAuth}>
-                  Sou Fornecedor
-                </Button>
-              </>
+              <Button size="sm" onClick={() => setAuthModalOpen(true)}>
+                Entrar
+              </Button>
             )}
           </div>
 
@@ -234,14 +218,9 @@ export function Header() {
                     Sair
                   </Button>
                 ) : (
-                  <>
-                    <Button variant="outline" onClick={openClientAuth}>
-                      Sou Cliente
+                    <Button className="w-full" onClick={() => { setMobileMenuOpen(false); setAuthModalOpen(true); }}>
+                      Entrar
                     </Button>
-                    <Button className="bg-gradient-orange shadow-orange" onClick={openVendorAuth}>
-                      Sou Fornecedor
-                    </Button>
-                  </>
                 )}
               </div>
             </nav>
@@ -252,7 +231,7 @@ export function Header() {
       <AuthModal
         open={authModalOpen}
         onOpenChange={setAuthModalOpen}
-        mode={authMode}
+        defaultToLogin
       />
     </>
   );

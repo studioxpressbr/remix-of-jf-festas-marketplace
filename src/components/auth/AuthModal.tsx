@@ -21,14 +21,16 @@ import { translateAuthError } from '@/lib/auth-errors';
 interface AuthModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  mode: 'client' | 'vendor';
+  mode?: 'client' | 'vendor';
+  defaultToLogin?: boolean;
 }
 
-type Step = 'auth' | 'forgot-password';
+type Step = 'auth' | 'role-select' | 'forgot-password';
 
-export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
+export function AuthModal({ open, onOpenChange, mode, defaultToLogin }: AuthModalProps) {
   const [step, setStep] = useState<Step>('auth');
-  const [isLogin, setIsLogin] = useState(false);
+  const [isLogin, setIsLogin] = useState(defaultToLogin ?? !!mode ? false : true);
+  const [selectedRole, setSelectedRole] = useState<'client' | 'vendor'>(mode || 'client');
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
   const [resetEmailSent, setResetEmailSent] = useState(false);
@@ -43,7 +45,8 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
 
   const resetForm = () => {
     setStep('auth');
-    setIsLogin(false);
+    setIsLogin(defaultToLogin ?? !mode);
+    setSelectedRole(mode || 'client');
     setEmail('');
     setPassword('');
     setFullName('');
@@ -105,7 +108,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
             data: {
               full_name: fullName,
               whatsapp,
-              role: mode,
+              role: selectedRole,
             },
           },
         });
@@ -114,8 +117,7 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
         toast({ title: 'Cadastro realizado com sucesso!' });
         handleClose();
         
-        // Redirect vendors to complete their profile later
-        if (mode === 'vendor' && data.user) {
+        if (selectedRole === 'vendor' && data.user) {
           navigate('/cadastro-fornecedor');
         }
       }
@@ -163,25 +165,54 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
         <DialogHeader>
           <DialogTitle className="font-display text-2xl">
             {step === 'auth' ? (
-              isLogin ? 'Entrar' : mode === 'vendor' ? 'Cadastro de Fornecedor' : 'Cadastro de Cliente'
+              isLogin ? 'Entrar' : selectedRole === 'vendor' ? 'Cadastro de Fornecedor' : 'Cadastro de Cliente'
+            ) : step === 'role-select' ? (
+              'Como deseja se cadastrar?'
             ) : (
               'Recuperar Senha'
             )}
           </DialogTitle>
           <DialogDescription>
             {step === 'auth' ? (
-              mode === 'vendor' ? (
+              isLogin ? 'Acesse sua conta' : selectedRole === 'vendor' ? (
                 <>Plano a partir de <strong>R$ {MEI_PLAN_PRICE}</strong>/ano</>
               ) : (
                 'Encontre os melhores fornecedores gratuitamente'
               )
+            ) : step === 'role-select' ? (
+              'Escolha seu perfil para continuar'
             ) : (
               'Digite seu email para receber o link de recuperação'
             )}
           </DialogDescription>
         </DialogHeader>
 
-        {step === 'auth' ? (
+        {step === 'role-select' ? (
+          <div className="space-y-4">
+            <Button
+              variant="outline"
+              className="w-full h-16 text-left flex flex-col items-start gap-0.5"
+              onClick={() => { setSelectedRole('client'); setIsLogin(false); setStep('auth'); }}
+            >
+              <span className="font-semibold">Sou Cliente</span>
+              <span className="text-xs text-muted-foreground">Quero encontrar fornecedores</span>
+            </Button>
+            <Button
+              variant="outline"
+              className="w-full h-16 text-left flex flex-col items-start gap-0.5"
+              onClick={() => { setSelectedRole('vendor'); setIsLogin(false); setStep('auth'); }}
+            >
+              <span className="font-semibold">Sou Fornecedor</span>
+              <span className="text-xs text-muted-foreground">Quero divulgar meu negócio</span>
+            </Button>
+            <p className="text-center text-sm text-muted-foreground">
+              Já tem conta?{' '}
+              <button type="button" onClick={() => { setIsLogin(true); setStep('auth'); }} className="font-medium text-primary hover:underline">
+                Entrar
+              </button>
+            </p>
+          </div>
+        ) : step === 'auth' ? (
           <div className="space-y-4">
             {/* Google Login Button */}
             <Button
@@ -301,7 +332,14 @@ export function AuthModal({ open, onOpenChange, mode }: AuthModalProps) {
               {isLogin ? 'Não tem conta?' : 'Já tem conta?'}{' '}
               <button
                 type="button"
-                onClick={() => setIsLogin(!isLogin)}
+                onClick={() => {
+                  if (isLogin && !mode) {
+                    // Go to role selection before signup
+                    setStep('role-select');
+                  } else {
+                    setIsLogin(!isLogin);
+                  }
+                }}
                 className="font-medium text-primary hover:underline"
               >
               {isLogin ? 'Cadastre-se' : 'Entrar'}
