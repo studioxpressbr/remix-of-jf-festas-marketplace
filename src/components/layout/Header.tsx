@@ -51,12 +51,6 @@ export function Header() {
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 md:flex">
             <Link
-              to="/"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
-            >
-              Explorar
-            </Link>
-            <Link
               to="/buscar"
               className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
             >
@@ -93,6 +87,12 @@ export function Header() {
                 Seja Fornecedor
               </Link>
             )}
+            <a
+              href="https://jffestas.com.br/blog/"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Blog
+            </a>
           </nav>
 
           {/* Auth Buttons / User Menu */}
@@ -154,13 +154,6 @@ export function Header() {
           <div className="animate-slide-up border-t border-border bg-background p-4 md:hidden">
             <nav className="flex flex-col gap-4">
               <Link
-                to="/"
-                className="text-sm font-medium"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Explorar
-              </Link>
-              <Link
                 to="/buscar"
                 className="flex items-center gap-1.5 text-sm font-medium"
                 onClick={() => setMobileMenuOpen(false)}
@@ -202,6 +195,13 @@ export function Header() {
                   Seja Fornecedor
                 </Link>
               )}
+              <a
+                href="https://jffestas.com.br/blog/"
+                className="text-sm font-medium"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Blog
+              </a>
               <a
                 href="https://www.instagram.com/festasemjf/"
                 target="_blank"
