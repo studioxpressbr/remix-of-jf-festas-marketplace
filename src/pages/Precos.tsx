@@ -91,7 +91,6 @@ function PrecosContent() {
     { icon: Crown, text: "Perfil destacado na plataforma" },
     { icon: Users, text: "Receba cotações de clientes" },
     { icon: Star, text: "Avaliações de clientes" },
-    { icon: Shield, text: "Enviar propostas com contratos" },
     { icon: Zap, text: "Acesso a bônus exclusivos" },
   ];
 
@@ -246,6 +245,12 @@ function PrecosContent() {
                     <Check className="h-4 w-4 text-sage" />
                   </div>
                   <span className="text-sm">Detalhes do evento</span>
+                </li>
+                <li className="flex items-center gap-3">
+                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-sage-light flex-shrink-0">
+                    <Check className="h-4 w-4 text-sage" />
+                  </div>
+                  <span className="text-sm">Enviar proposta com contrato</span>
                 </li>
               </ul>
 
