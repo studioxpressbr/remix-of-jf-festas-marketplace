@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { Header } from '@/components/layout/Header';
@@ -40,6 +40,7 @@ import {
   DollarSign,
   Send,
   Clock,
+  TrendingUp,
 } from 'lucide-react';
 import { cn, formatBRL } from '@/lib/utils';
 import { StarRating } from '@/components/ui/star-rating';
@@ -525,6 +526,61 @@ function DashboardContent() {
                 vendorId={user?.id}
               />
             </div>
+
+            {/* Deals Summary Section */}
+            {(() => {
+              const now = new Date();
+              const periods = [30, 60, 90].map(days => {
+                const cutoff = new Date(now.getTime() - days * 24 * 60 * 60 * 1000);
+                const closed = quotes.filter(q => {
+                  const la = q.leads_access?.find(l => l.deal_closed);
+                  if (la?.deal_closed_at && new Date(la.deal_closed_at) >= cutoff) return true;
+                  if (q.client_response === 'accepted' && q.client_responded_at && new Date(q.client_responded_at) >= cutoff) return true;
+                  return false;
+                });
+                const total = closed.reduce((sum, q) => {
+                  const la = q.leads_access?.find(l => l.deal_closed);
+                  return sum + (la?.deal_value ?? q.proposed_value ?? 0);
+                }, 0);
+                return { days, count: closed.length, total, avg: closed.length > 0 ? total / closed.length : 0 };
+              });
+
+              return (
+                <div className="mb-8">
+                  <h2 className="mb-4 font-display text-lg font-semibold flex items-center gap-2">
+                    <Handshake className="h-5 w-5 text-primary" />
+                    Resumo de Negócios Fechados
+                  </h2>
+                  <div className="grid gap-4 sm:grid-cols-3">
+                    {periods.map(p => (
+                      <Card key={p.days} className="bg-gradient-card">
+                        <CardContent className="p-5 space-y-3">
+                          <p className="text-sm font-medium text-muted-foreground">
+                            Últimos {p.days} dias
+                          </p>
+                          <div className="flex items-center gap-2">
+                            <Handshake className="h-4 w-4 text-sage" />
+                            <span className="text-lg font-semibold">
+                              {p.count} {p.count === 1 ? 'negócio' : 'negócios'}
+                            </span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <DollarSign className="h-4 w-4 text-sage" />
+                            <span className="text-sm">{formatBRL(p.total)}</span>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <TrendingUp className="h-4 w-4 text-primary" />
+                            <span className="text-xs text-muted-foreground">
+                              TM: {formatBRL(p.avg)}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
 
             {/* Coupons Section */}
             <div className="mb-8">
