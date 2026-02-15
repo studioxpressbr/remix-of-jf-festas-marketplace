@@ -1,21 +1,21 @@
 
+## Atualizar o Price ID do Plano Empresarial
 
-## Corrigir duplicacao do simbolo "$" nos valores monetarios
+O produto foi recriado no Stripe com um novo Price ID. A correcao consiste em atualizar uma unica linha no arquivo de constantes.
 
-O problema: a funcao `formatBRL()` ja retorna o valor com "R$" (ex: "R$ 500,00"), mas em alguns locais do codigo ha um icone `DollarSign` antes do valor, criando a exibicao "$ R$ 500,00".
+### Alteracao
 
-### Arquivos afetados
+**Arquivo:** `src/lib/constants.ts` (linha 51)
 
-1. **`src/pages/VendorDashboard.tsx`** (linha 615) — Badge de negocio fechado no painel do fornecedor. Remover o icone `<DollarSign>` mantendo apenas `{formatBRL(dealValue ?? 0)}`.
+- **De:** `priceId: 'price_1T0O3kPBxEvxO8pMReV3b3Qd'`
+- **Para:** `priceId: 'price_1T1Dy9RDc1lDOFiCBOwBhCrW'`
 
-2. **`src/components/client/ClientProposalCard.tsx`** (linha 106) — Card de proposta no painel do cliente. Remover o icone `<DollarSign>` antes de `{formatBRL(proposedValue)}`.
+Tambem sera atualizado o `productId` para o correto: `prod_TyKj9SRXANiUjY`.
 
-### O que NAO sera alterado
+### Validacao
 
-- Icones `DollarSign` usados como decoracao (sem valor ao lado), como nas abas do Admin e nos relatorios.
-- O campo de input no `DealClosedModal.tsx`, onde o icone serve como prefixo de formulario (o usuario digita apenas numeros).
+Apos a alteracao, sera feito um teste chamando a funcao de checkout para confirmar que o Stripe aceita o novo price ID.
 
-### Estimativa
+### Custo estimado
 
-0 creditos — este ajuste ja foi pago anteriormente.
-
+0 creditos — correcao de configuracao ja solicitada anteriormente.
