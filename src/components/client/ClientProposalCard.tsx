@@ -102,12 +102,9 @@ export function ClientProposalCard({
   return (
     <div className="rounded-lg border-2 border-primary/20 bg-primary/5 p-4 space-y-3">
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <DollarSign className="h-5 w-5 text-primary" />
-          <span className="font-semibold text-lg">
-            {formatBRL(proposedValue)}
-          </span>
-        </div>
+        <span className="font-semibold text-lg">
+          {formatBRL(proposedValue)}
+        </span>
         <span className="text-xs text-muted-foreground">
           {format(new Date(proposedAt), "dd/MM/yyyy 'às' HH:mm", { locale: ptBR })}
         </span>
