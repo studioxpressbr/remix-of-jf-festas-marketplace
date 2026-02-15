@@ -60,6 +60,12 @@ interface Quote {
   description: string | null;
   status: string;
   created_at: string;
+  proposed_value: number | null;
+  proposed_at: string | null;
+  proposal_message: string | null;
+  contract_url: string | null;
+  client_response: string | null;
+  client_responded_at: string | null;
   profiles: {
     full_name: string;
     whatsapp: string | null;
@@ -621,7 +627,8 @@ function DashboardContent() {
                               </Badge>
                             )}
                             <div className="flex flex-wrap gap-2 mt-2">
-                              {!dealClosed && leadAccess && !(quote as any).proposed_at && (
+                              {/* Enviar Proposta - only if no proposal sent yet, or if rejected */}
+                              {!dealClosed && leadAccess && !quote.proposed_at && (
                                 <Button
                                   variant="outline"
                                   size="sm"
@@ -634,32 +641,66 @@ function DashboardContent() {
                                   Enviar Proposta
                                 </Button>
                               )}
-                              {!dealClosed && (quote as any).proposed_at && (
-                                <>
-                                  {(quote as any).client_response === 'accepted' ? (
-                                    <Badge className="text-xs bg-green-600 hover:bg-green-600/90">
-                                      <CheckCircle className="mr-1 h-3 w-3" />
-                                      Proposta Aceita
-                                    </Badge>
-                                  ) : (quote as any).client_response === 'rejected' ? (
-                                    <Badge variant="destructive" className="text-xs">
-                                      <AlertCircle className="mr-1 h-3 w-3" />
-                                      Proposta Recusada
-                                    </Badge>
-                                  ) : (
-                                    <Badge variant="secondary" className="text-xs">
-                                      <Clock className="mr-1 h-3 w-3" />
-                                      Aguardando Resposta
-                                    </Badge>
-                                  )}
-                                  {(quote as any).proposed_value && (
-                                    <span className="text-xs font-medium text-muted-foreground">
-                                      {formatBRL((quote as any).proposed_value)}
+                              {/* Proposal status block */}
+                              {!dealClosed && quote.proposed_at && (
+                                <div className="flex flex-col gap-1.5 items-end">
+                                  <div className="flex items-center gap-2">
+                                    {quote.client_response === 'accepted' ? (
+                                      <Badge className="text-xs bg-green-600 hover:bg-green-600/90">
+                                        <CheckCircle className="mr-1 h-3 w-3" />
+                                        Proposta Aceita
+                                      </Badge>
+                                    ) : quote.client_response === 'rejected' ? (
+                                      <Badge variant="destructive" className="text-xs">
+                                        <AlertCircle className="mr-1 h-3 w-3" />
+                                        Proposta Recusada
+                                      </Badge>
+                                    ) : (
+                                      <Badge variant="secondary" className="text-xs">
+                                        <Clock className="mr-1 h-3 w-3" />
+                                        Aguardando Resposta
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {quote.proposed_value != null && (
+                                    <span className="text-sm font-semibold text-primary">
+                                      {formatBRL(quote.proposed_value)}
                                     </span>
                                   )}
-                                </>
+                                  {quote.proposal_message && (
+                                    <p className="text-xs text-muted-foreground max-w-[200px] truncate" title={quote.proposal_message}>
+                                      💬 {quote.proposal_message}
+                                    </p>
+                                  )}
+                                  {quote.contract_url && (
+                                    <span className="text-xs text-muted-foreground">
+                                      📎 Contrato anexado
+                                    </span>
+                                  )}
+                                  {quote.client_responded_at && (
+                                    <span className="text-xs text-muted-foreground">
+                                      Respondido em {format(new Date(quote.client_responded_at), 'dd/MM/yyyy', { locale: ptBR })}
+                                    </span>
+                                  )}
+                                  {/* Re-send proposal if rejected */}
+                                  {quote.client_response === 'rejected' && leadAccess && (
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="mt-1"
+                                      onClick={() => setProposalModal({
+                                        quoteId: quote.id,
+                                        clientName: quote.profiles?.full_name || 'Cliente',
+                                      })}
+                                    >
+                                      <Send className="mr-2 h-4 w-4" />
+                                      Nova Proposta
+                                    </Button>
+                                  )}
+                                </div>
                               )}
-                              {!dealClosed && leadAccess && (
+                              {/* Fechei negócio - hidden when proposal accepted */}
+                              {!dealClosed && leadAccess && quote.client_response !== 'accepted' && (
                                 <Button
                                   variant="outline"
                                   size="sm"
