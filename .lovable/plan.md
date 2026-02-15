@@ -1,62 +1,70 @@
 
 
-## Revisao e Atualizacao do Dashboard do Fornecedor
+## Resumo de Contratos Fechados no Dashboard do Fornecedor
 
-### Problemas Identificados
-
-1. **Tipagem incompleta**: A interface `Quote` (linha 55-69) nao inclui os campos de proposta (`proposed_value`, `proposed_at`, `proposal_message`, `contract_url`, `client_response`, `client_responded_at`). O codigo usa `(quote as any)` em 6 lugares (linhas 624, 637, 639, 644, 655), o que e fragil e impede verificacao de tipos.
-
-2. **Fluxo visual incompleto**: Quando uma proposta e aceita pelo cliente, o `ClientProposalCard` marca o deal como fechado automaticamente, mas o dashboard nao distingue visualmente entre fechamento manual e fechamento via proposta aceita.
-
-3. **Informacoes da proposta ocultas**: Apos enviar uma proposta, o fornecedor ve apenas um badge de status e o valor, mas nao ve a mensagem que enviou nem se anexou contrato.
-
-4. **Botao "Fechei negocio" visivel apos proposta aceita**: Quando o cliente aceita a proposta, o deal e fechado automaticamente, mas pode haver um estado transitorio onde o botao ainda aparece.
+**Custo: 0 créditos** — os dados necessarios ja sao carregados no dashboard (via `leads_access` dentro de cada `quote`). A implementacao e puramente frontend.
 
 ---
 
-### Alteracoes Planejadas
+### O que sera adicionado
+
+Um card de resumo exibido logo abaixo dos cards de assinatura/creditos, mostrando:
+
+- **Negocios fechados** nos ultimos 30, 60 e 90 dias (contagem)
+- **Valor total** faturado em cada periodo
+- **Ticket medio** (valor total / quantidade)
+
+O layout sera em 3 colunas (ou empilhadas no mobile), cada uma representando um periodo.
+
+---
+
+### Origem dos dados
+
+Os dados ja estao disponiveis no state `quotes`, que inclui `leads_access` com:
+- `deal_closed: boolean`
+- `deal_value: number | null`
+- `deal_closed_at: string | null`
+
+Tambem serao considerados deals fechados via proposta aceita (`client_response === 'accepted'`), usando `proposed_value` quando `deal_value` nao estiver preenchido.
+
+Nenhuma query adicional ao banco e necessaria.
+
+---
+
+### Alteracoes
 
 **Arquivo: `src/pages/VendorDashboard.tsx`**
 
-1. **Atualizar interface `Quote`** (linhas 55-69) — adicionar campos de proposta:
-   - `proposed_value: number | null`
-   - `proposed_at: string | null`
-   - `proposal_message: string | null`
-   - `contract_url: string | null`
-   - `client_response: string | null`
-   - `client_responded_at: string | null`
+1. **Adicionar calculo `useMemo`** que filtra os deals fechados por periodo (30, 60, 90 dias) e calcula contagem, valor total e ticket medio.
 
-2. **Remover todos os casts `(quote as any)`** (linhas 624, 637, 639, 644, 655) — substituir por acesso tipado direto.
+2. **Adicionar cards de resumo** no layout, posicionados entre os cards de assinatura/creditos e a lista de cotacoes. Cada card mostra:
 
-3. **Melhorar secao de proposta enviada** (linhas 637-661) — exibir um bloco mais informativo quando a proposta ja foi enviada:
-   - Mostrar valor proposto de forma destacada
-   - Mostrar mensagem da proposta (se houver)
-   - Indicar se contrato foi anexado
-   - Badge de status (Aceita / Recusada / Aguardando) com data de resposta
+```text
++------------------+------------------+------------------+
+|   Ultimos 30d    |   Ultimos 60d    |   Ultimos 90d    |
+|   3 negocios     |   7 negocios     |   12 negocios    |
+|   R$ 4.500,00    |   R$ 10.200,00   |   R$ 18.600,00   |
+|   TM: R$ 1.500   |   TM: R$ 1.457   |   TM: R$ 1.550   |
++------------------+------------------+------------------+
+```
 
-4. **Ocultar botao "Fechei negocio" quando proposta foi aceita** — se `client_response === 'accepted'`, o deal ja foi fechado automaticamente, entao o botao manual nao deve aparecer.
+3. **Icones utilizados**: `Handshake` (negocios), `DollarSign` (valor), `TrendingUp` (ticket medio) — todos ja importados ou disponiveis no lucide-react.
 
 ---
 
 ### Detalhes Tecnicos
 
 ```text
-Interface Quote (antes):
-  id, client_id, event_date, pax_count, description, status,
-  created_at, profiles, leads_access
-
-Interface Quote (depois):
-  + proposed_value, proposed_at, proposal_message,
-  + contract_url, client_response, client_responded_at
+Calculo (useMemo sobre quotes):
+  Para cada periodo [30, 60, 90]:
+    - Filtrar leads_access onde deal_closed === true
+      E deal_closed_at >= (hoje - N dias)
+    - Incluir tambem quotes com client_response === 'accepted'
+      E client_responded_at >= (hoje - N dias)
+    - Valor = deal_value ?? proposed_value ?? 0
+    - Contagem = length
+    - Ticket medio = total / contagem (ou 0)
 ```
 
-Logica de exibicao de botoes (atualizada):
-```text
-Lead desbloqueado E sem proposta    -> [Enviar Proposta] [Fechei negocio]
-Proposta enviada, aguardando        -> Badge "Aguardando" + valor + [Fechei negocio]
-Proposta aceita                     -> Badge "Aceita" + valor (sem botao manual)
-Proposta recusada                   -> Badge "Recusada" + [Enviar Proposta] + [Fechei negocio]
-Deal fechado                        -> Badge com valor + [Avaliar cliente]
-```
+Nenhuma alteracao de banco de dados, edge functions ou novas dependencias.
 
-Nenhuma alteracao de banco de dados e necessaria — os campos ja existem na tabela `quotes`.
