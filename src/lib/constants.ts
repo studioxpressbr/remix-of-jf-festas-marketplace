@@ -48,8 +48,8 @@ export const STRIPE_MEI_PLAN = {
 };
 
 export const STRIPE_EMPRESARIAL_PLAN = {
-  priceId: 'price_1T0O3kPBxEvxO8pMReV3b3Qd',
-  productId: 'prod_empresarial',
+  priceId: 'price_1T1Dy9RDc1lDOFiCBOwBhCrW',
+  productId: 'prod_TyKj9SRXANiUjY',
   label: 'Plano Empresarial',
 };
 
