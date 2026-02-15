@@ -612,7 +612,6 @@ function DashboardContent() {
                           <>
                             {dealClosed ? (
                               <Badge className="bg-primary text-primary-foreground border-0">
-                                <DollarSign className="mr-1 h-3 w-3" />
                                 {formatBRL(dealValue ?? 0)}
                               </Badge>
                             ) : (
