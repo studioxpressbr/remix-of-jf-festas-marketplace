@@ -91,8 +91,8 @@ function PrecosContent() {
     { icon: Crown, text: "Perfil destacado na plataforma" },
     { icon: Users, text: "Receba cotações de clientes" },
     { icon: Star, text: "Avaliações de clientes" },
-    { icon: Shield, text: "Suporte prioritário" },
-    { icon: Zap, text: "Acesso a estatísticas" },
+    { icon: Shield, text: "Enviar propostas com contratos" },
+    { icon: Zap, text: "Acesso a bônus exclusivos" },
   ];
 
   const empresarialFeatures = [
