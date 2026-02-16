@@ -881,6 +881,7 @@ function DashboardContent() {
               instagram_url: vendorInfo.instagram_url,
               images: vendorInfo.images,
             }}
+            vendorType={vendorInfo.vendor_type}
             onSave={fetchData}
           />
         )}

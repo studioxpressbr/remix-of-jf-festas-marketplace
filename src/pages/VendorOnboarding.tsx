@@ -204,7 +204,7 @@ function OnboardingContent() {
         custom_category: data.category === 'outros' ? data.custom_category : null,
         description: data.description,
         neighborhood: data.neighborhood,
-        website_url: data.website_url || null,
+        website_url: null,
         instagram_url: data.instagram_url || null,
         images: data.images,
         approval_status: 'pending',
@@ -450,24 +450,6 @@ function OnboardingContent() {
                             <FormDescription>
                               {field.value?.length || 0}/500 caracteres
                             </FormDescription>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-
-                      <FormField
-                        control={form.control}
-                        name="website_url"
-                        render={({ field }) => (
-                          <FormItem>
-                            <FormLabel>Site (opcional)</FormLabel>
-                            <FormControl>
-                              <Input
-                                placeholder="Ex: https://www.seu-site.com"
-                                type="url"
-                                {...field}
-                              />
-                            </FormControl>
                             <FormMessage />
                           </FormItem>
                         )}
