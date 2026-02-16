@@ -16,6 +16,7 @@ import { VendorReviewClientModal } from '@/components/vendor/VendorReviewClientM
 import { DeleteAccountModal } from '@/components/vendor/DeleteAccountModal';
 import { VendorProposalModal } from '@/components/vendor/VendorProposalModal';
 import { VendorSentQuotesSection } from '@/components/vendor/VendorSentQuotesSection';
+import { AdvancedReportsSection } from '@/components/vendor/AdvancedReportsSection';
 import { supabase } from '@/integrations/supabase/client';
 import { MEI_PLAN_PRICE, EMPRESARIAL_PLAN_PRICE, STRIPE_MEI_PLAN, STRIPE_EMPRESARIAL_PLAN } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -581,6 +582,13 @@ function DashboardContent() {
                 </div>
               );
             })()}
+
+            {/* Advanced Reports Section */}
+            <AdvancedReportsSection
+              quotes={quotes}
+              creditHistory={creditTransactions}
+              vendorType={vendorInfo.vendor_type}
+            />
 
             {/* Coupons Section */}
             <div className="mb-8">
