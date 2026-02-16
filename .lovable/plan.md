@@ -1,32 +1,55 @@
 
 
-## Teste dos Relatórios Avançados
+## Restringir Link do Site ao Plano Empresarial
 
-### Situação atual
-Todos os 4 fornecedores estão no plano MEI. Nenhum deles vê os relatórios avançados — todos veem o card de upsell com preview borrado.
+**Custo: 0 creditos** — correcao de regra de negocio ja definida, puramente frontend.
 
-### Proposta para teste
-Alterar temporariamente o `vendor_type` do fornecedor **"Delícias da Dê"** (perfil dlima 123) de `mei` para `empresarial` via migração no banco. Esse perfil é ideal porque:
+---
 
-- Você já está logado com ele
-- Possui 7 cotações, 6 leads desbloqueados e 5 negócios fechados
-- Permite validar todas as métricas com dados reais
+### Problema
 
-### O que será feito
-1. Executar uma migração SQL para alterar o `vendor_type` de "Delícias da Dê" para `empresarial`
-2. Recarregar o dashboard para verificar a seção completa de relatórios
+O campo "Site" aparece para todos os fornecedores, independente do plano. Pela regra de negocio, apenas fornecedores do plano Empresarial podem incluir link para o site.
 
-### Reversão
-Após o teste, se desejar reverter para MEI, basta solicitar — será outra migração simples.
+### Locais afetados
 
-### Detalhes Técnicos
+1. **VendorOnboarding.tsx** — O campo website_url aparece no Step 1 para todos. Como o onboarding nao define vendor_type (fica como `mei` por padrao no banco), o campo deve ser **removido do onboarding** ou exibido apenas se houver selecao de plano Empresarial. Como nao ha selecao de plano no onboarding, o campo sera removido.
 
-A migração será:
+2. **VendorEditProfileModal.tsx** — O campo website_url aparece sempre. Precisa receber `vendorType` como prop e exibir o campo apenas quando `vendorType === 'empresarial'`.
+
+### Alteracoes
+
+**Arquivo: `src/pages/VendorOnboarding.tsx`**
+- Remover o campo `website_url` do formulario (Step 1)
+- Manter `website_url` no schema Zod como opcional (nao quebra nada), mas o campo nao sera renderizado
+
+**Arquivo: `src/components/vendor/VendorEditProfileModal.tsx`**
+- Adicionar prop `vendorType: 'mei' | 'empresarial'` na interface
+- Renderizar o campo "Site" condicionalmente: apenas quando `vendorType === 'empresarial'`
+- Quando `vendorType === 'mei'`, garantir que `website_url` seja enviado como `null` no submit
+
+**Arquivo: `src/pages/VendorDashboard.tsx`**
+- Passar `vendorType={vendorInfo.vendor_type}` para o `VendorEditProfileModal`
+
+### Detalhes Tecnicos
+
 ```text
-UPDATE vendors
-SET vendor_type = 'empresarial'
-WHERE id = '32be5f92-0efd-4919-9a6b-e7934bf628d4';
+VendorEditProfileModal:
+  interface props: + vendorType: 'mei' | 'empresarial'
+
+  No render:
+    {vendorType === 'empresarial' && (
+      <FormField name="website_url" ... />
+    )}
+
+  No submit:
+    website_url: vendorType === 'empresarial' ? (data.website_url || null) : null
+
+VendorOnboarding:
+  Remover o bloco <FormField name="website_url"> (linhas ~458-474)
+  No submit, enviar website_url: null
+
+VendorDashboard:
+  <VendorEditProfileModal vendorType={vendorInfo.vendor_type} ... />
 ```
 
-Nenhuma outra alteração necessária.
-
+Nenhuma alteracao de banco de dados necessaria.
