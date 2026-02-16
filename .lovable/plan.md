@@ -1,70 +1,89 @@
 
 
-## Resumo de Contratos Fechados no Dashboard do Fornecedor
+## Relatórios Avançados Exclusivos para o Plano Empresarial
 
-**Custo: 0 créditos** — os dados necessarios ja sao carregados no dashboard (via `leads_access` dentro de cada `quote`). A implementacao e puramente frontend.
+**Custo estimado: 1-2 créditos**
 
----
-
-### O que sera adicionado
-
-Um card de resumo exibido logo abaixo dos cards de assinatura/creditos, mostrando:
-
-- **Negocios fechados** nos ultimos 30, 60 e 90 dias (contagem)
-- **Valor total** faturado em cada periodo
-- **Ticket medio** (valor total / quantidade)
-
-O layout sera em 3 colunas (ou empilhadas no mobile), cada uma representando um periodo.
+Os dados necessários já existem no banco (quotes, leads_access, vendor_credits). A implementação é puramente frontend com lógica de gating por `vendor_type`.
 
 ---
 
-### Origem dos dados
+### O que será implementado
 
-Os dados ja estao disponiveis no state `quotes`, que inclui `leads_access` com:
-- `deal_closed: boolean`
-- `deal_value: number | null`
-- `deal_closed_at: string | null`
+Uma nova seção "Relatórios Avançados" visível **apenas para fornecedores do plano Empresarial** (`vendor_type === 'empresarial'`), exibida abaixo do resumo básico atual. Fornecedores MEI verão um card de upsell convidando-os a fazer upgrade.
 
-Tambem serao considerados deals fechados via proposta aceita (`client_response === 'accepted'`), usando `proposed_value` quando `deal_value` nao estiver preenchido.
+**Métricas exclusivas:**
 
-Nenhuma query adicional ao banco e necessaria.
+1. **Taxa de conversão** — Percentual de leads desbloqueados que resultaram em negócio fechado (total e por período).
+2. **ROI de créditos** — Valor total faturado dividido pelo custo dos créditos utilizados (quantidade de leads x R$2).
+3. **Tempo médio de fechamento** — Dias entre o desbloqueio do lead e o fechamento do negócio.
+4. **Desempenho de propostas** — Taxa de aceitação das propostas enviadas (aceitas vs. total).
+5. **Gráfico de evolução** — Gráfico de barras (usando Recharts, já instalado) mostrando o volume de negócios fechados mês a mês nos últimos 6 meses.
 
 ---
 
-### Alteracoes
+### Gating (Controle de Acesso)
+
+```text
+Se vendor_type === 'empresarial':
+  -> Exibe seção completa de relatórios avançados
+
+Se vendor_type === 'mei':
+  -> Exibe card com preview borrado + botão "Fazer upgrade"
+     que redireciona para /precos
+```
+
+---
+
+### Alterações Planejadas
 
 **Arquivo: `src/pages/VendorDashboard.tsx`**
 
-1. **Adicionar calculo `useMemo`** que filtra os deals fechados por periodo (30, 60, 90 dias) e calcula contagem, valor total e ticket medio.
+1. Adicionar cálculos `useMemo` para as 5 métricas acima, usando os dados já presentes no state (`quotes`, `creditHistory`).
+2. Adicionar seção condicional com cards de métricas e gráfico de barras.
+3. Adicionar card de upsell para fornecedores MEI.
 
-2. **Adicionar cards de resumo** no layout, posicionados entre os cards de assinatura/creditos e a lista de cotacoes. Cada card mostra:
+**Arquivo novo: `src/components/vendor/AdvancedReportsSection.tsx`**
 
-```text
-+------------------+------------------+------------------+
-|   Ultimos 30d    |   Ultimos 60d    |   Ultimos 90d    |
-|   3 negocios     |   7 negocios     |   12 negocios    |
-|   R$ 4.500,00    |   R$ 10.200,00   |   R$ 18.600,00   |
-|   TM: R$ 1.500   |   TM: R$ 1.457   |   TM: R$ 1.550   |
-+------------------+------------------+------------------+
-```
-
-3. **Icones utilizados**: `Handshake` (negocios), `DollarSign` (valor), `TrendingUp` (ticket medio) — todos ja importados ou disponiveis no lucide-react.
+Componente extraído para manter o dashboard organizado, recebendo `quotes`, `creditHistory` e `vendorType` como props.
 
 ---
 
-### Detalhes Tecnicos
+### Layout dos Cards
 
 ```text
-Calculo (useMemo sobre quotes):
-  Para cada periodo [30, 60, 90]:
-    - Filtrar leads_access onde deal_closed === true
-      E deal_closed_at >= (hoje - N dias)
-    - Incluir tambem quotes com client_response === 'accepted'
-      E client_responded_at >= (hoje - N dias)
-    - Valor = deal_value ?? proposed_value ?? 0
-    - Contagem = length
-    - Ticket medio = total / contagem (ou 0)
++---------------------+---------------------+
+|  Taxa de Conversão  |   ROI de Créditos   |
+|       45%           |      3.2x           |
++---------------------+---------------------+
+|  Tempo Médio        | Propostas Aceitas   |
+|     5.3 dias        |      62%            |
++---------------------+---------------------+
+
+[Gráfico de barras - Negócios por mês (últimos 6 meses)]
 ```
 
-Nenhuma alteracao de banco de dados, edge functions ou novas dependencias.
+---
 
+### Detalhes Técnicos
+
+```text
+Taxa de conversão:
+  (leads com deal_closed) / (total de leads desbloqueados) * 100
+
+ROI de créditos:
+  valor total faturado / (quantidade de leads desbloqueados * 2)
+
+Tempo médio de fechamento:
+  média de (deal_closed_at - leads_access.created_at) em dias
+
+Taxa de aceitação de propostas:
+  (quotes com client_response === 'accepted') /
+  (quotes com proposed_at !== null) * 100
+
+Gráfico mensal:
+  Agrupa deals por mês usando deal_closed_at,
+  renderiza com Recharts BarChart (já instalado)
+```
+
+Nenhuma alteração de banco de dados ou edge functions necessária.
