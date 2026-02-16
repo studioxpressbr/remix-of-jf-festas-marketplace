@@ -99,6 +99,7 @@ function PrecosContent() {
     { icon: Globe, text: "Link do site oficial da empresa" },
     { icon: Users, text: "Prioridade em destaque" },
     { icon: Star, text: "Badge de Plano Empresarial" },
+    { icon: Crown, text: "Relatório gerencial avançado" },
     { icon: Zap, text: "Divulgação semanal no Instagram" },
   ];
 
