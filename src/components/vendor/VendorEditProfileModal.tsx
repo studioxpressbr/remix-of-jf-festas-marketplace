@@ -83,6 +83,7 @@ interface VendorEditProfileModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   vendorData: VendorData;
+  vendorType: 'mei' | 'empresarial';
   onSave: () => void;
 }
 
@@ -90,6 +91,7 @@ export function VendorEditProfileModal({
   open,
   onOpenChange,
   vendorData,
+  vendorType,
   onSave,
 }: VendorEditProfileModalProps) {
   const { toast } = useToast();
@@ -140,7 +142,7 @@ export function VendorEditProfileModal({
           custom_category: data.category === 'outros' ? data.custom_category : null,
           description: data.description,
           neighborhood: data.neighborhood,
-          website_url: data.website_url || null,
+          website_url: vendorType === 'empresarial' ? (data.website_url || null) : null,
           instagram_url: data.instagram_url || null,
           images: data.images,
           // Reset approval when editing - requires re-approval
@@ -293,23 +295,25 @@ export function VendorEditProfileModal({
               )}
             />
 
-            <FormField
-              control={form.control}
-              name="website_url"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Site (opcional)</FormLabel>
-                  <FormControl>
-                    <Input
-                      placeholder="Ex: https://www.seu-site.com"
-                      type="url"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+            {vendorType === 'empresarial' && (
+              <FormField
+                control={form.control}
+                name="website_url"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Site (opcional)</FormLabel>
+                    <FormControl>
+                      <Input
+                        placeholder="Ex: https://www.seu-site.com"
+                        type="url"
+                        {...field}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
 
             <FormField
               control={form.control}
