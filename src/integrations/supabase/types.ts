@@ -537,6 +537,7 @@ export type Database = {
       }
       vendors: {
         Row: {
+          address: string | null
           approval_status: string
           approved_at: string | null
           approved_by: string | null
@@ -562,6 +563,7 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          address?: string | null
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
@@ -587,6 +589,7 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          address?: string | null
           approval_status?: string
           approved_at?: string | null
           approved_by?: string | null
@@ -632,6 +635,7 @@ export type Database = {
     Views: {
       vendors_public: {
         Row: {
+          address: string | null
           business_name: string | null
           category: Database["public"]["Enums"]["vendor_category"] | null
           category_id: string | null
@@ -652,6 +656,7 @@ export type Database = {
           website_url: string | null
         }
         Insert: {
+          address?: string | null
           business_name?: string | null
           category?: Database["public"]["Enums"]["vendor_category"] | null
           category_id?: string | null
@@ -672,6 +677,7 @@ export type Database = {
           website_url?: string | null
         }
         Update: {
+          address?: string | null
           business_name?: string | null
           category?: Database["public"]["Enums"]["vendor_category"] | null
           category_id?: string | null
@@ -711,6 +717,7 @@ export type Database = {
       vendors_search: {
         Row: {
           active_coupons_count: number | null
+          address: string | null
           approved_at: string | null
           avg_rating: number | null
           business_name: string | null
