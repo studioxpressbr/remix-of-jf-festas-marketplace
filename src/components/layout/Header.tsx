@@ -82,7 +82,7 @@ export function Header() {
             {!user && (
               <Link
                 to="/cadastro-fornecedor"
-                className="text-sm font-medium text-primary transition-colors hover:text-primary/80"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
               >
                 Seja Fornecedor
               </Link>
@@ -197,7 +197,7 @@ export function Header() {
               {!user && (
                 <Link
                   to="/cadastro-fornecedor"
-                  className="text-sm font-medium text-primary"
+                  className="text-sm font-medium"
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Seja Fornecedor
