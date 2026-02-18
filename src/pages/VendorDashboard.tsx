@@ -85,6 +85,7 @@ interface VendorInfo {
   custom_category: string | null;
   description: string | null;
   neighborhood: string | null;
+  address: string | null;
   website_url: string | null;
   instagram_url: string | null;
   images: string[] | null;
@@ -877,6 +878,7 @@ function DashboardContent() {
               custom_category: vendorInfo.custom_category,
               description: vendorInfo.description,
                neighborhood: vendorInfo.neighborhood,
+              address: vendorInfo.address || null,
               website_url: vendorInfo.website_url,
               instagram_url: vendorInfo.instagram_url,
               images: vendorInfo.images,

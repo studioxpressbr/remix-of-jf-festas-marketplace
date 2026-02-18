@@ -50,6 +50,12 @@ const editProfileSchema = z.object({
     .trim()
     .min(2, 'Bairro é obrigatório')
     .max(100, 'Bairro deve ter no máximo 100 caracteres'),
+  address: z
+    .string()
+    .trim()
+    .min(10, 'Endereço deve ter pelo menos 10 caracteres')
+    .max(200, 'Endereço deve ter no máximo 200 caracteres')
+    .or(z.literal('')),
   website_url: z
     .string()
     .trim()
@@ -74,6 +80,7 @@ interface VendorData {
   custom_category: string | null;
   description: string | null;
   neighborhood: string | null;
+  address: string | null;
   website_url: string | null;
   instagram_url: string | null;
   images: string[] | null;
@@ -105,6 +112,7 @@ export function VendorEditProfileModal({
       custom_category: vendorData.custom_category || '',
       description: vendorData.description || '',
       neighborhood: vendorData.neighborhood || '',
+      address: vendorData.address || '',
       website_url: vendorData.website_url || '',
       instagram_url: vendorData.instagram_url || '',
       images: vendorData.images || [],
@@ -123,6 +131,7 @@ export function VendorEditProfileModal({
         custom_category: vendorData.custom_category || '',
         description: vendorData.description || '',
         neighborhood: vendorData.neighborhood || '',
+        address: vendorData.address || '',
         website_url: vendorData.website_url || '',
         instagram_url: vendorData.instagram_url || '',
         images: vendorData.images || [],
@@ -142,6 +151,7 @@ export function VendorEditProfileModal({
           custom_category: data.category === 'outros' ? data.custom_category : null,
           description: data.description,
           neighborhood: data.neighborhood,
+          address: data.address || null,
           website_url: vendorType === 'empresarial' ? (data.website_url || null) : null,
           instagram_url: data.instagram_url || null,
           images: data.images,
@@ -268,6 +278,23 @@ export function VendorEditProfileModal({
                   <FormLabel>Bairro de atuação *</FormLabel>
                   <FormControl>
                     <Input placeholder="Ex: Centro, Zona Sul" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="address"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Endereço completo (opcional)</FormLabel>
+                  <FormControl>
+                    <Input
+                      placeholder="Ex: Rua Santos Dumont, 123 - Centro, Juiz de Fora - MG"
+                      {...field}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

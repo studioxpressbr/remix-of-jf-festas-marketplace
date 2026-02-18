@@ -62,6 +62,12 @@ const vendorFormSchema = z.object({
     .trim()
     .min(2, 'Bairro é obrigatório')
     .max(100, 'Bairro deve ter no máximo 100 caracteres'),
+  address: z
+    .string()
+    .trim()
+    .min(10, 'Endereço deve ter pelo menos 10 caracteres')
+    .max(200, 'Endereço deve ter no máximo 200 caracteres')
+    .or(z.literal('')),
   website_url: z
     .string()
     .trim()
@@ -105,6 +111,7 @@ function OnboardingContent() {
       custom_category: '',
       description: '',
       neighborhood: '',
+      address: '',
       website_url: '',
       instagram_url: '',
       images: [],
@@ -204,6 +211,7 @@ function OnboardingContent() {
         custom_category: data.category === 'outros' ? data.custom_category : null,
         description: data.description,
         neighborhood: data.neighborhood,
+        address: data.address || null,
         website_url: null,
         instagram_url: data.instagram_url || null,
         images: data.images,
@@ -426,6 +434,23 @@ function OnboardingContent() {
                             <FormControl>
                               <Input
                                 placeholder="Ex: Centro, Zona Sul"
+                                {...field}
+                              />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
+                        name="address"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabel>Endereço completo (opcional)</FormLabel>
+                            <FormControl>
+                              <Input
+                                placeholder="Ex: Rua Santos Dumont, 123 - Centro, Juiz de Fora - MG"
                                 {...field}
                               />
                             </FormControl>

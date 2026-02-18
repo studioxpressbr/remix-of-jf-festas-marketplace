@@ -7,6 +7,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
+  Carousel,
+  CarouselContent,
+  CarouselItem,
+} from "@/components/ui/carousel";
+import Autoplay from "embla-carousel-autoplay";
+import {
   DollarSign,
   ShieldCheck,
   Tag,
@@ -18,6 +24,24 @@ import {
   Send,
   CheckCircle,
 } from "lucide-react";
+
+const heroSlides = [
+  {
+    gradient: "from-[hsl(24,95%,53%,0.15)] to-[hsl(24,90%,70%,0.1)]",
+    title: "Encontre os melhores fornecedores",
+    subtitle: "Profissionais verificados para tornar sua festa inesquecível",
+  },
+  {
+    gradient: "from-[hsl(45,40%,90%)] to-[hsl(45,30%,95%)]",
+    title: "Cadastro gratuito, sem compromisso",
+    subtitle: "Crie sua conta em menos de 1 minuto e comece a receber cotações",
+  },
+  {
+    gradient: "from-[hsl(145,25%,50%,0.2)] to-[hsl(145,25%,90%,0.3)]",
+    title: "Promoções exclusivas para você",
+    subtitle: "Cupons e ofertas especiais disponíveis apenas para clientes cadastrados",
+  },
+];
 
 const advantages = [
   {
@@ -81,20 +105,35 @@ function ParaClientesPage() {
       <Header />
 
       <main>
-        {/* Hero */}
-        <section className="bg-gradient-to-b from-secondary/10 to-background py-16 md:py-24">
-          <div className="container text-center">
-            <Badge variant="secondary" className="mb-4">
-              Para Clientes
-            </Badge>
-            <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-5xl">
-              Por que usar o JF Festas?
-            </h1>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Encontre os melhores fornecedores de festas em Juiz de Fora. Cadastro gratuito, sem compromisso e com
-              ofertas exclusivas para você.
-            </p>
-          </div>
+        {/* Hero Carousel */}
+        <section>
+          <Carousel
+            plugins={[Autoplay({ delay: 4000, stopOnInteraction: false })]}
+            opts={{ loop: true }}
+            className="w-full"
+          >
+            <CarouselContent>
+              {heroSlides.map((slide, index) => (
+                <CarouselItem key={index}>
+                  <div className={`bg-gradient-to-br ${slide.gradient} py-16 md:py-24`}>
+                    <div className="container text-center">
+                      {index === 0 && (
+                        <Badge variant="secondary" className="mb-4">
+                          Para Clientes
+                        </Badge>
+                      )}
+                      <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-5xl">
+                        {slide.title}
+                      </h1>
+                      <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+                        {slide.subtitle}
+                      </p>
+                    </div>
+                  </div>
+                </CarouselItem>
+              ))}
+            </CarouselContent>
+          </Carousel>
         </section>
 
         {/* Vantagens */}
