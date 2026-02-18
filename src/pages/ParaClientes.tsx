@@ -23,44 +23,32 @@ const advantages = [
   {
     icon: DollarSign,
     title: "Cadastro 100% gratuito",
-    description:
-      "Crie sua conta sem nenhum custo. Você não paga nada para usar a plataforma.",
+    description: "Crie sua conta sem nenhum custo. Você não paga nada para usar a plataforma.",
   },
   {
     icon: ThumbsUp,
     title: "Sem obrigação de aceitar cotações",
-    description:
-      "Receba propostas de fornecedores e escolha apenas se fizer sentido para você.",
+    description: "Receba propostas de fornecedores e escolha apenas se fizer sentido para você.",
   },
   {
     icon: Tag,
     title: "Promoções e ofertas exclusivas",
-    description:
-      "Clientes cadastrados têm acesso a cupons e condições especiais dos fornecedores.",
+    description: "Clientes cadastrados têm acesso a cupons e condições especiais dos fornecedores.",
   },
   {
     icon: ShieldCheck,
     title: "Fornecedores verificados",
-    description:
-      "Todos os fornecedores passam por aprovação antes de aparecer na plataforma.",
-  },
-  {
-    icon: Star,
-    title: "Avalie fornecedores após o evento",
-    description:
-      "Compartilhe sua experiência e ajude outros clientes a escolherem melhor.",
+    description: "Todos os fornecedores passam por aprovação antes de aparecer na plataforma.",
   },
   {
     icon: MessageCircle,
     title: "Contato direto com profissionais",
-    description:
-      "Converse diretamente com os fornecedores e tire todas as suas dúvidas.",
+    description: "Converse diretamente com os fornecedores e tire todas as suas dúvidas.",
   },
   {
     icon: Users,
     title: "Avaliações reais de outros clientes",
-    description:
-      "Veja opiniões genuínas de quem já contratou antes de tomar sua decisão.",
+    description: "Veja opiniões genuínas de quem já contratou antes de tomar sua decisão.",
   },
 ];
 
@@ -75,15 +63,13 @@ const steps = [
     number: 2,
     icon: Send,
     title: "Solicite cotações",
-    description:
-      "Encontre fornecedores e peça orçamentos sem compromisso.",
+    description: "Encontre fornecedores e peça orçamentos sem compromisso.",
   },
   {
     number: 3,
     icon: CheckCircle,
     title: "Escolha o melhor",
-    description:
-      "Compare propostas, avaliações e ofertas. Contrate com segurança.",
+    description: "Compare propostas, avaliações e ofertas. Contrate com segurança.",
   },
 ];
 
@@ -105,9 +91,8 @@ function ParaClientesPage() {
               Por que usar o JF Festas?
             </h1>
             <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-              Encontre os melhores fornecedores de festas em Juiz de Fora.
-              Cadastro gratuito, sem compromisso e com ofertas exclusivas para
-              você.
+              Encontre os melhores fornecedores de festas em Juiz de Fora. Cadastro gratuito, sem compromisso e com
+              ofertas exclusivas para você.
             </p>
           </div>
         </section>
@@ -126,12 +111,8 @@ function ParaClientesPage() {
                       <item.icon className="h-5 w-5" />
                     </div>
                     <div>
-                      <h3 className="font-semibold text-foreground">
-                        {item.title}
-                      </h3>
-                      <p className="mt-1 text-sm text-muted-foreground">
-                        {item.description}
-                      </p>
+                      <h3 className="font-semibold text-foreground">{item.title}</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">{item.description}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -153,9 +134,7 @@ function ParaClientesPage() {
                     {step.number}
                   </div>
                   <h3 className="font-semibold text-foreground">{step.title}</h3>
-                  <p className="mt-2 text-sm text-muted-foreground">
-                    {step.description}
-                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">{step.description}</p>
                 </div>
               ))}
             </div>
@@ -169,14 +148,9 @@ function ParaClientesPage() {
               Pronto para encontrar o fornecedor ideal?
             </h2>
             <p className="mx-auto mt-3 max-w-lg text-muted-foreground">
-              Cadastre-se gratuitamente e comece a receber cotações dos melhores
-              profissionais de Juiz de Fora.
+              Cadastre-se gratuitamente e comece a receber cotações dos melhores profissionais de Juiz de Fora.
             </p>
-            <Button
-              size="lg"
-              className="mt-6"
-              onClick={() => setAuthOpen(true)}
-            >
+            <Button size="lg" className="mt-6" onClick={() => setAuthOpen(true)}>
               Cadastre-se Gratuitamente
             </Button>
           </div>
