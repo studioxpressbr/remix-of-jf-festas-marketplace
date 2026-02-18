@@ -87,6 +87,14 @@ export function Header() {
                 Seja Fornecedor
               </Link>
             )}
+            {(!user || profile?.role === 'client') && (
+              <Link
+                to="/para-clientes"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              >
+                Para Clientes
+              </Link>
+            )}
             <a
               href="https://jffestas.com.br/blog/"
               className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
@@ -193,6 +201,15 @@ export function Header() {
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Seja Fornecedor
+                </Link>
+              )}
+              {(!user || profile?.role === 'client') && (
+                <Link
+                  to="/para-clientes"
+                  className="text-sm font-medium"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Para Clientes
                 </Link>
               )}
               <a

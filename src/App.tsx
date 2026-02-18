@@ -16,6 +16,7 @@ import PagamentoSucesso from "./pages/PagamentoSucesso";
 import LeadDesbloqueado from "./pages/LeadDesbloqueado";
 import CreditosSucesso from "./pages/CreditosSucesso";
 import Precos from "./pages/Precos";
+import ParaClientes from "./pages/ParaClientes";
 import Admin from "./pages/Admin";
 import ResetPassword from "./pages/ResetPassword";
 import NotFound from "./pages/NotFound";
@@ -39,6 +40,7 @@ const App = () => (
             <Route path="/buscar" element={<Buscar />} />
             <Route path="/termos" element={<Termos />} />
             <Route path="/precos" element={<Precos />} />
+            <Route path="/para-clientes" element={<ParaClientes />} />
             <Route path="/gestao/admin" element={<Admin />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/categoria/:slug" element={<CategoryPage />} />
