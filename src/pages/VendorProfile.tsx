@@ -35,6 +35,7 @@ interface VendorData {
   category: string;
   description: string | null;
   neighborhood: string | null;
+  address: string | null;
   images: string[];
   is_approved?: boolean;
   approval_status?: string;
@@ -542,6 +543,29 @@ function VendorProfileContent() {
               <h2 className="mb-3 font-display text-xl font-semibold">Sobre</h2>
               <p className="text-muted-foreground">{vendor.description}</p>
             </div>
+          )}
+
+          {/* Location Card with Google Maps */}
+          {vendor.address && (
+            <Card className="mt-8">
+              <CardHeader className="pb-3">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <MapPin className="h-5 w-5 text-primary" />
+                  Localização
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-sm text-muted-foreground mb-3">{vendor.address}</p>
+                <iframe
+                  src={`https://www.google.com/maps/embed/v1/place?key=${import.meta.env.VITE_GOOGLE_MAPS_API_KEY}&q=${encodeURIComponent(vendor.address)}`}
+                  className="h-48 w-full rounded-lg border-0"
+                  allowFullScreen
+                  loading="lazy"
+                  referrerPolicy="no-referrer-when-downgrade"
+                  title="Localização do fornecedor"
+                />
+              </CardContent>
+            </Card>
           )}
 
           {/* Coupons Section - visible to everyone */}
