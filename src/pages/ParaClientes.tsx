@@ -27,17 +27,17 @@ import {
 
 const heroSlides = [
   {
-    gradient: "from-[hsl(24,95%,53%,0.15)] to-[hsl(24,90%,70%,0.1)]",
+    image: "/1.png",
     title: "Encontre os melhores fornecedores",
     subtitle: "Profissionais verificados para tornar sua festa inesquecível",
   },
   {
-    gradient: "from-[hsl(45,40%,90%)] to-[hsl(45,30%,95%)]",
+    image: "/2.png",
     title: "Cadastro gratuito, sem compromisso",
     subtitle: "Crie sua conta em menos de 1 minuto e comece a receber cotações",
   },
   {
-    gradient: "from-[hsl(145,25%,50%,0.2)] to-[hsl(145,25%,90%,0.3)]",
+    image: "/3.png",
     title: "Promoções exclusivas para você",
     subtitle: "Cupons e ofertas especiais disponíveis apenas para clientes cadastrados",
   },
@@ -115,17 +115,21 @@ function ParaClientesPage() {
             <CarouselContent>
               {heroSlides.map((slide, index) => (
                 <CarouselItem key={index}>
-                  <div className={`bg-gradient-to-br ${slide.gradient} py-16 md:py-24`}>
-                    <div className="container text-center">
+                  <div
+                    className="relative bg-cover bg-center bg-no-repeat py-16 md:py-24"
+                    style={{ backgroundImage: `url(${slide.image})` }}
+                  >
+                    <div className="absolute inset-0 bg-black/40" />
+                    <div className="container relative text-center">
                       {index === 0 && (
                         <Badge variant="secondary" className="mb-4">
                           Para Clientes
                         </Badge>
                       )}
-                      <h1 className="font-display text-3xl font-bold tracking-tight text-foreground md:text-5xl">
+                      <h1 className="font-display text-3xl font-bold tracking-tight text-white md:text-5xl">
                         {slide.title}
                       </h1>
-                      <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
+                      <p className="mx-auto mt-4 max-w-2xl text-lg text-white/90">
                         {slide.subtitle}
                       </p>
                     </div>

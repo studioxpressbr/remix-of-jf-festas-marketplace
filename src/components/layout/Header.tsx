@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { NavLink } from '@/components/NavLink';
 import { Button } from '@/components/ui/button';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { AuthModal } from '@/components/auth/AuthModal';
@@ -13,6 +14,9 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import logoJfFestas from '@/assets/logo-jffestas.webp';
+
+const navLinkClass = "text-sm font-medium text-muted-foreground transition-colors hover:text-primary";
+const navLinkActive = "text-primary font-semibold";
 
 export function Header() {
   const { user, profile, signOut } = useAuthContext();
@@ -50,54 +54,60 @@ export function Header() {
 
           {/* Desktop Navigation */}
           <nav className="hidden items-center gap-6 md:flex">
-            <Link
+            <NavLink
               to="/buscar"
-              className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className={`flex items-center gap-1.5 ${navLinkClass}`}
+              activeClassName={navLinkActive}
             >
               <Search className="h-4 w-4" />
               Buscar
-            </Link>
-            <Link
+            </NavLink>
+            <NavLink
               to="/precos"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className={navLinkClass}
+              activeClassName={navLinkActive}
             >
               Preços
-            </Link>
+            </NavLink>
             {user && profile?.role === 'vendor' && (
-              <Link
+              <NavLink
                 to="/dashboard"
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className={navLinkClass}
+                activeClassName={navLinkActive}
               >
                 Minha Área
-              </Link>
+              </NavLink>
             )}
             {user && profile?.role === 'client' && (
-              <Link
+              <NavLink
                 to="/minha-conta"
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className={navLinkClass}
+                activeClassName={navLinkActive}
               >
                 Minha Conta
-              </Link>
+              </NavLink>
             )}
             {!user && (
-              <Link
+              <NavLink
                 to="/cadastro-fornecedor"
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className={navLinkClass}
+                activeClassName={navLinkActive}
               >
                 Seja Fornecedor
-              </Link>
+              </NavLink>
             )}
             {(!user || profile?.role === 'client') && (
-              <Link
+              <NavLink
                 to="/para-clientes"
-                className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+                className={navLinkClass}
+                activeClassName={navLinkActive}
               >
                 Para Clientes
-              </Link>
+              </NavLink>
             )}
             <a
               href="https://jffestas.com.br/blog/"
-              className="text-sm font-medium text-muted-foreground transition-colors hover:text-foreground"
+              className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
             >
               Blog
             </a>
@@ -161,60 +171,66 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="animate-slide-up border-t border-border bg-background p-4 md:hidden">
             <nav className="flex flex-col gap-4">
-              <Link
+              <NavLink
                 to="/buscar"
-                className="flex items-center gap-1.5 text-sm font-medium"
+                className={`flex items-center gap-1.5 ${navLinkClass}`}
+                activeClassName={navLinkActive}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 <Search className="h-4 w-4" />
                 Buscar
-              </Link>
-              <Link
+              </NavLink>
+              <NavLink
                 to="/precos"
-                className="text-sm font-medium"
+                className={navLinkClass}
+                activeClassName={navLinkActive}
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Preços
-              </Link>
+              </NavLink>
               {user && profile?.role === 'vendor' && (
-                <Link
+                <NavLink
                   to="/dashboard"
-                  className="text-sm font-medium"
+                  className={navLinkClass}
+                  activeClassName={navLinkActive}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Minha Área
-                </Link>
+                </NavLink>
               )}
               {user && profile?.role === 'client' && (
-                <Link
+                <NavLink
                   to="/minha-conta"
-                  className="text-sm font-medium"
+                  className={navLinkClass}
+                  activeClassName={navLinkActive}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Minha Conta
-                </Link>
+                </NavLink>
               )}
               {!user && (
-                <Link
+                <NavLink
                   to="/cadastro-fornecedor"
-                  className="text-sm font-medium"
+                  className={navLinkClass}
+                  activeClassName={navLinkActive}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Seja Fornecedor
-                </Link>
+                </NavLink>
               )}
               {(!user || profile?.role === 'client') && (
-                <Link
+                <NavLink
                   to="/para-clientes"
-                  className="text-sm font-medium"
+                  className={navLinkClass}
+                  activeClassName={navLinkActive}
                   onClick={() => setMobileMenuOpen(false)}
                 >
                   Para Clientes
-                </Link>
+                </NavLink>
               )}
               <a
                 href="https://jffestas.com.br/blog/"
-                className="text-sm font-medium"
+                className="text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
                 onClick={() => setMobileMenuOpen(false)}
               >
                 Blog
@@ -223,7 +239,7 @@ export function Header() {
                 href="https://www.instagram.com/festasemjf/"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex items-center gap-1.5 text-sm font-medium text-secondary"
+                className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-primary"
               >
                 <Instagram className="h-4 w-4" />
                 @festasemjf
