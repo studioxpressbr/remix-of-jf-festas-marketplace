@@ -90,8 +90,8 @@ function PrecosContent() {
   const meiFeatures = [
     { icon: Crown, text: "Perfil destacado na plataforma" },
     { icon: Users, text: "Receba cotações de clientes" },
-    { icon: Users, text: "Sem taxas de agenciamento" }
-    { icon: Users, text: "Negocie direto com o cliente" }
+    { icon: Users, text: "Sem taxas de agenciamento" },
+    { icon: Users, text: "Negocie direto com o cliente" },
     { icon: Star, text: "Avaliações de clientes" },
     { icon: Zap, text: "Acesso a bônus exclusivos" },
   ];
