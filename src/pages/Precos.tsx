@@ -1,110 +1,38 @@
-import { useState } from "react";
 import { Header } from "@/components/layout/Header";
-import { Button } from "@/components/ui/button";
+import { buttonVariants } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
   MEI_PLAN_PRICE,
   EMPRESARIAL_PLAN_PRICE,
   LEAD_PRICE,
-  STRIPE_MEI_PLAN,
-  STRIPE_EMPRESARIAL_PLAN,
-  STRIPE_LEAD_CREDITS,
 } from "@/lib/constants";
-import { supabase } from "@/integrations/supabase/client";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { AuthProvider } from "@/contexts/AuthContext";
-import { useToast } from "@/hooks/use-toast";
-import { Check, Crown, Sparkles, Users, Star, Shield, Zap, Lock, Globe } from "lucide-react";
+import { Check, Crown, Sparkles, Users, Star, Zap, Lock, Globe } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-function PrecosContent() {
-  const { user, profile } = useAuthContext();
-  const { toast } = useToast();
-  const [selectedPlan, setSelectedPlan] = useState<"mei" | "empresarial">("mei");
+const STRIPE_MEI_LINK = "https://buy.stripe.com/3cIaEZ6L0arK5OO66l8og00";
+const STRIPE_EMPRESARIAL_LINK = "https://buy.stripe.com/9B63cx9Xc1Ve2CCamB8og01";
+const STRIPE_CREDITS_LINK = "https://buy.stripe.com/fZu4gB4CSbvO1yycuJ8og02";
 
-  const handleSubscribe = async (planType: "mei" | "empresarial") => {
-    if (!user) {
-      toast({
-        title: "Login necessário",
-        description: "Faça login como fornecedor para assinar.",
-        variant: "destructive",
-      });
-      return;
-    }
+const meiFeatures = [
+  { icon: Crown, text: "Perfil destacado na plataforma" },
+  { icon: Users, text: "Receba cotações de clientes" },
+  { icon: Users, text: "Sem taxas de agenciamento" },
+  { icon: Users, text: "Negocie direto com o cliente" },
+  { icon: Star, text: "Avaliações de clientes" },
+  { icon: Zap, text: "Acesso a bônus exclusivos" },
+];
 
-    try {
-      const plan = planType === "empresarial" ? STRIPE_EMPRESARIAL_PLAN : STRIPE_MEI_PLAN;
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          priceId: plan.priceId,
-          mode: "subscription",
-        },
-      });
+const empresarialFeatures = [
+  { icon: Crown, text: "Tudo do plano MEI" },
+  { icon: Globe, text: "Link do site oficial da empresa" },
+  { icon: Users, text: "Prioridade em destaque" },
+  { icon: Star, text: "Badge de Plano Empresarial" },
+  { icon: Crown, text: "Relatório gerencial avançado" },
+  { icon: Zap, text: "Divulgação semanal no Instagram" },
+];
 
-      if (error) throw error;
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error: unknown) {
-      toast({
-        title: "Erro ao processar",
-        description: error instanceof Error ? error.message : "Tente novamente",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const handleBuyCredits = async () => {
-    if (!user) {
-      toast({
-        title: "Login necessário",
-        description: "Faça login como fornecedor para comprar créditos.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase.functions.invoke("create-checkout", {
-        body: {
-          priceId: STRIPE_LEAD_CREDITS.priceId,
-          mode: "payment",
-        },
-      });
-
-      if (error) throw error;
-
-      if (data?.url) {
-        window.location.href = data.url;
-      }
-    } catch (error: unknown) {
-      toast({
-        title: "Erro ao processar",
-        description: error instanceof Error ? error.message : "Tente novamente",
-        variant: "destructive",
-      });
-    }
-  };
-
-  const meiFeatures = [
-    { icon: Crown, text: "Perfil destacado na plataforma" },
-    { icon: Users, text: "Receba cotações de clientes" },
-    { icon: Users, text: "Sem taxas de agenciamento" },
-    { icon: Users, text: "Negocie direto com o cliente" },
-    { icon: Star, text: "Avaliações de clientes" },
-    { icon: Zap, text: "Acesso a bônus exclusivos" },
-  ];
-
-  const empresarialFeatures = [
-    { icon: Crown, text: "Tudo do plano MEI" },
-    { icon: Globe, text: "Link do site oficial da empresa" },
-    { icon: Users, text: "Prioridade em destaque" },
-    { icon: Star, text: "Badge de Plano Empresarial" },
-    { icon: Crown, text: "Relatório gerencial avançado" },
-    { icon: Zap, text: "Divulgação semanal no Instagram" },
-  ];
-
+export default function Precos() {
   return (
     <div className="min-h-screen bg-background">
       <Header />
@@ -152,13 +80,14 @@ function PrecosContent() {
                 ))}
               </ul>
 
-              <Button
-                onClick={() => handleSubscribe("mei")}
-                className="w-full bg-gradient-coral shadow-coral"
-                size="lg"
+              <a
+                href={STRIPE_MEI_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ size: "lg" }), "w-full bg-gradient-coral shadow-coral")}
               >
                 Começar Agora
-              </Button>
+              </a>
 
               <p className="text-center text-xs text-muted-foreground">
                 Pagamento seguro via Stripe. Cancele quando quiser.
@@ -195,13 +124,14 @@ function PrecosContent() {
                 ))}
               </ul>
 
-              <Button
-                onClick={() => handleSubscribe("empresarial")}
-                className="w-full bg-amber-500 hover:bg-amber-600 text-white"
-                size="lg"
+              <a
+                href={STRIPE_EMPRESARIAL_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ size: "lg" }), "w-full bg-amber-500 hover:bg-amber-600 text-white")}
               >
                 Começar Agora
-              </Button>
+              </a>
 
               <p className="text-center text-xs text-muted-foreground">
                 Pagamento seguro via Stripe. Cancele quando quiser.
@@ -263,9 +193,14 @@ function PrecosContent() {
                 </p>
               </div>
 
-              <Button onClick={handleBuyCredits} variant="outline" className="w-full" size="lg">
+              <a
+                href={STRIPE_CREDITS_LINK}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={cn(buttonVariants({ variant: "outline", size: "lg" }), "w-full")}
+              >
                 Comprar Créditos
-              </Button>
+              </a>
 
               <p className="text-center text-xs text-muted-foreground">Requer assinatura ativa do Plano Anual.</p>
             </CardContent>
@@ -315,13 +250,5 @@ function PrecosContent() {
         </div>
       </main>
     </div>
-  );
-}
-
-export default function Precos() {
-  return (
-    <AuthProvider>
-      <PrecosContent />
-    </AuthProvider>
   );
 }

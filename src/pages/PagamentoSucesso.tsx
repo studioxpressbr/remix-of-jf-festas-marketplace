@@ -18,8 +18,17 @@ function SuccessContent() {
   const sessionId = searchParams.get('session_id');
 
   useEffect(() => {
+    // Fluxo via link direto do Stripe: sem session_id na URL
+    // A presença na página já indica que o Stripe redirecionou após pagamento aprovado
+    if (!sessionId) {
+      setVerifying(false);
+      setSuccess(true);
+      return;
+    }
+
+    // Fluxo legado via edge function com session_id
     async function verifyPayment() {
-      if (!sessionId || !user) {
+      if (!user) {
         setVerifying(false);
         return;
       }
@@ -33,7 +42,6 @@ function SuccessContent() {
 
         if (data.success) {
           setSuccess(true);
-          // Trigger subscription check
           await supabase.functions.invoke('check-subscription');
         } else {
           setError(data.message || 'Pagamento não confirmado');
@@ -86,11 +94,17 @@ function SuccessContent() {
           <div className="mb-4 rounded-full bg-sage/20 p-4">
             <CheckCircle className="h-12 w-12 text-sage" />
           </div>
-          <h2 className="font-display text-2xl font-bold">Pagamento Confirmado!</h2>
+          <h2 className="font-display text-2xl font-bold">Pagamento Realizado! 🎉</h2>
           <p className="mt-2 text-muted-foreground">
-            Sua assinatura foi ativada com sucesso. Agora você pode receber 
-            cotações e conectar-se com clientes.
+            {sessionId
+              ? 'Sua assinatura foi ativada com sucesso. Agora você pode receber cotações e conectar-se com clientes.'
+              : 'Obrigado pelo seu pagamento! Em breve sua assinatura será ativada. Isso pode levar alguns minutos.'}
           </p>
+          {!sessionId && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              Se sua assinatura não aparecer ativa em até 10 minutos, entre em contato com nosso suporte.
+            </p>
+          )}
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">
             <Button 
               className="bg-gradient-orange shadow-orange" 
