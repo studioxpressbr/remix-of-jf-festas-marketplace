@@ -1,53 +1,47 @@
 
+## Diagnóstico do Stripe e Plano de Ação
 
-## Correção: Fornecedores não aparecem na busca
-
-**Custo: 0 creditos** (correção de bug de configuração de banco de dados)
+**Custo estimado: 0 creditos** (nenhum arquivo de codigo precisa ser alterado)
 
 ---
 
-### Diagnostico
+### O que foi testado
 
-Os 4 fornecedores aprovados e ativos existem no banco de dados, mas as consultas do frontend retornam arrays vazios. Dois problemas foram identificados:
+1. Chamada direta para a edge function `create-checkout` — retornou HTTP 200 com URL de checkout valida do Stripe.
+2. Logs da edge function — confirmam que a funcao processou com sucesso a ultima chamada (07:55 de hoje), gerando a sessao `cs_test_a117fM...`.
+3. Chave e Price IDs — `STRIPE_SECRET_KEY` esta configurada; os IDs de preco em `constants.ts` batem com os enviados para o Stripe.
 
-1. As views `vendors_search` e `vendors_public` perderam as permissoes GRANT para os papeis `anon` (visitantes) e `authenticated` (usuarios logados)
-2. Todas as politicas de segurança (RLS) na tabela base `vendors` sao do tipo RESTRICTIVE. No PostgreSQL, quando so existem politicas restritivas (sem nenhuma permissiva), nenhuma linha e retornada para nenhum usuario
+### Conclusao do diagnostico
 
-### Solucao
+**O Stripe esta funcionando corretamente.** A integracao tecnica esta completa e operacional.
 
-Uma unica migracao SQL que:
+O que pode estar parecendo "nao funcionar" e um comportamento esperado do ambiente de teste:
 
-1. Concede permissao SELECT nas duas views para `anon` e `authenticated`
-2. Adiciona uma politica PERMISSIVA na tabela `vendors` permitindo que qualquer usuario (anon ou autenticado) visualize fornecedores aprovados e ativos
-3. Remove a politica restritiva antiga que cobria o mesmo caso ("Approved active vendors viewable by authenticated users"), pois a nova politica permissiva a substitui de forma mais correta
+| Situacao | Motivo |
+|---|---|
+| Cartao real recusado no checkout | A chave `sk_test_` so aceita cartoes de teste do Stripe |
+| Assinatura nao ativa apos pagamento | Pagamento de teste exige cartao de teste |
 
-### Detalhes Tecnicos
+### Cartoes de teste para validar o fluxo
 
-```text
-SQL Migration:
+Para testar o checkout do inicio ao fim, use estes dados no formulario do Stripe:
 
--- 1. Conceder SELECT nas views
-GRANT SELECT ON public.vendors_search TO anon, authenticated;
-GRANT SELECT ON public.vendors_public TO anon, authenticated;
+- **Numero do cartao:** `4242 4242 4242 4242`
+- **Validade:** qualquer data futura (ex: `12/34`)
+- **CVC:** qualquer 3 digitos (ex: `123`)
+- **CEP:** qualquer 5 digitos (ex: `12345`)
 
--- 2. Remover politica restritiva antiga
-DROP POLICY IF EXISTS "Approved active vendors viewable by authenticated users" ON public.vendors;
+### Para ir para producao (quando pronto)
 
--- 3. Criar politica permissiva (permite anon + authenticated)
-CREATE POLICY "Public can view approved active vendors"
-  ON public.vendors
-  FOR SELECT
-  TO anon, authenticated
-  USING (
-    subscription_status = 'active'::subscription_status
-    AND is_approved = true
-  );
+Nenhuma mudanca de codigo e necessaria. So e preciso:
 
--- Manter as politicas restritivas existentes:
--- "Admins can view all vendors" (restritiva) -> continua
--- "Vendors can view their own profile" (restritiva) -> continua
--- Essas passam a funcionar como refinamento adicional,
--- mas a nova permissiva garante acesso publico ao basico
-```
+1. Obter a chave `sk_live_...` no painel do Stripe (em modo producao)
+2. Atualizar o segredo `STRIPE_SECRET_KEY` com a chave de producao
+3. Criar os produtos/precos no modo producao do Stripe e atualizar os Price IDs em `src/lib/constants.ts` e na edge function `buy-lead-credit`
+4. Publicar o projeto
 
-Resultado: a pagina /buscar e a homepage voltarao a exibir os fornecedores.
+### Detalhe tecnico adicional
+
+A edge function `verify-payment` nao mostra logs porque so e chamada na pagina `/pagamento-sucesso`, que so e acessada apos um pagamento real completado. Isso e normal e nao indica erro.
+
+**Nenhuma alteracao de codigo ou banco de dados e necessaria para corrigir algo quebrado. O sistema esta funcional.**
