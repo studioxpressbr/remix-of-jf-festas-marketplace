@@ -1,54 +1,63 @@
 
-## Ativar Stripe em Modo Producao (Live)
+## Corrigir Sobreposição Visual nos Cards da Busca
 
-**Custo estimado: 1 credito** (atualizacao de Price IDs em `constants.ts` e na edge function `buy-lead-credit`)
+### Diagnóstico do Problema
 
----
+O `VendorCard` tem uma falha estrutural no posicionamento:
 
-### O que precisa ser feito
+```text
+<Link>
+  <Card>                          ← sem "relative", tem overflow-hidden
+    <div class="relative h-64">  ← imagem + overlay ficam aqui
+    </div>
+    <CardContent class="absolute bottom-0"> ← PROBLEMA: ancora no Card,
+                                              que não é "relative"
+    </CardContent>
+  </Card>
+</Link>
+```
 
-Existem **3 lugares** onde os IDs do Stripe precisam ser atualizados para os equivalentes de producao (`live`):
-
-| Arquivo | O que atualizar |
-|---|---|
-| Segredo `STRIPE_SECRET_KEY` | Substituir `sk_test_...` por `sk_live_...` |
-| `src/lib/constants.ts` | 3 Price IDs e 3 Product IDs (MEI, Empresarial, Creditos) |
-| `supabase/functions/buy-lead-credit/index.ts` | `LEAD_CREDIT_PRICE_ID` hardcoded na linha 26 |
-
----
-
-### Passo 1 — Atualizar a chave secreta (voce faz isso)
-
-No Lovable, acesse **Settings → Secrets** e atualize o valor de `STRIPE_SECRET_KEY` com sua chave `sk_live_...` obtida em [dashboard.stripe.com → Developers → API Keys](https://dashboard.stripe.com/apikeys) (certifique-se de desativar o "Test mode" la).
+O `CardContent` com `absolute bottom-0 left-0 right-0` deveria estar dentro do `div` da imagem (que tem `relative`), mas está **fora** dele. Como o `Card` não tem `position: relative`, o elemento se ancora incorretamente — causando sobreposição visual sobre o cupom, avaliações e conteúdo de cards vizinhos.
 
 ---
 
-### Passo 2 — Obter os Price IDs de producao (voce faz isso no Stripe)
+### Solução
 
-No painel do Stripe em modo **Live**, acesse **Products** e copie os IDs dos produtos e precos que correspondem a:
+Mover o `CardContent` para **dentro** do `div` que contém a imagem (que já tem `relative`), e adicionar `relative` ao `Card` como salvaguarda. Também adicionar `overflow-hidden` ao `Link` raiz para garantir que nada vaze além das bordas arredondadas.
 
-- **Plano MEI** (R$ 99/ano): `price_live_...` e `prod_live_...`
-- **Plano Empresarial** (R$ 499/ano): `price_live_...` e `prod_live_...`
-- **Creditos para Leads** (R$ 2/unidade): `price_live_...` e `prod_live_...`
+**Estrutura corrigida:**
 
-Se os produtos ainda nao existem em modo Live, voce precisa cria-los no painel do Stripe antes de continuar.
+```text
+<Link>
+  <Card class="relative overflow-hidden">
+    <div class="relative h-64">       ← imagem + gradient
+      <img />
+      <div gradient />
+      <div badges (top) />
+      <CardContent absolute bottom-0> ← CORRETO: dentro do div relative
+        Nome, bairro, avaliação
+      </CardContent>
+    </div>
+  </Card>
+</Link>
+```
 
 ---
 
-### Passo 3 — Eu atualizo o codigo (1 credito)
+### Arquivo a editar
 
-Com os IDs de producao em maos, eu atualizo:
+**`src/components/home/VendorCard.tsx`** — 1 arquivo, ~10 linhas alteradas:
 
-1. **`src/lib/constants.ts`** — os 6 IDs (3 price + 3 product) nos objetos `STRIPE_MEI_PLAN`, `STRIPE_EMPRESARIAL_PLAN` e `STRIPE_LEAD_CREDITS`
-2. **`supabase/functions/buy-lead-credit/index.ts`** — o `LEAD_CREDIT_PRICE_ID` na linha 26
+1. Adicionar `relative` ao `Card` (linha 43)
+2. Mover o `<CardContent>` de fora do `div` da imagem para **dentro** dele, antes do fechamento `</div>` (linha 80)
+3. Garantir que os badges de topo (categoria + cupom) continuam visíveis com `z-10`
+4. Adicionar `z-10` ao `CardContent` para garantir que ele fica acima do overlay de gradiente
 
 ---
 
-### Como proceder
+### Impacto
 
-1. Atualize o segredo `STRIPE_SECRET_KEY` com sua chave `sk_live_...`
-2. Me envie os Price IDs e Product IDs de producao do seu painel Stripe
-3. Eu atualizo o codigo e a edge function automaticamente
-4. Publique o projeto para que as alteracoes entrem em vigor no site jffestas.lovable.app
-
-> **Importante:** Apos a troca, qualquer pagamento processado sera real e cobrado no cartao do cliente. Confirme que os produtos e precos no Stripe Live estao corretos antes de publicar.
+- Resolve a sobreposição do badge de cupom sobre elementos de outros cards
+- Resolve a sobreposição da avaliação (estrelas + contagem) sobre outros elementos
+- Nenhuma mudança visual intencional — apenas o posicionamento é corrigido
+- Nenhuma alteração em outros arquivos
