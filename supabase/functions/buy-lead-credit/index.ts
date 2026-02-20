@@ -23,7 +23,7 @@ const logStep = (step: string, details?: unknown) => {
 };
 
 // Price ID for lead credits
-const LEAD_CREDIT_PRICE_ID = "price_1StuLVRDc1lDOFiCfmHwuIrg";
+const LEAD_CREDIT_PRICE_ID = "price_1Sxlz6PBxEvxO8pMoRyfZUDw";
 
 serve(async (req) => {
   const origin = req.headers.get("origin");
