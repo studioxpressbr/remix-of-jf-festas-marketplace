@@ -39,8 +39,8 @@ export const VendorCard = React.forwardRef<HTMLAnchorElement, VendorCardProps>(
     const hasRating = (vendor.avg_rating ?? 0) > 0;
 
     return (
-      <Link ref={ref} to={vendor.slug ? `/fornecedor/${vendor.slug}` : `/vendor/${vendor.profile_id}`}>
-        <Card className="group overflow-hidden border-0 bg-gradient-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-medium">
+      <Link ref={ref} to={vendor.slug ? `/fornecedor/${vendor.slug}` : `/vendor/${vendor.profile_id}`} className="block overflow-hidden rounded-lg">
+        <Card className="relative overflow-hidden border-0 bg-gradient-card shadow-soft transition-all duration-300 hover:-translate-y-1 hover:shadow-medium">
           <div className={cn('relative overflow-hidden', heightClass)}>
             {randomImage ? (
               <img
@@ -58,7 +58,7 @@ export const VendorCard = React.forwardRef<HTMLAnchorElement, VendorCardProps>(
             <div className="absolute inset-0 bg-gradient-to-t from-foreground/80 via-foreground/20 to-transparent" />
             
             {/* Top badges row */}
-            <div className="absolute left-3 right-3 top-3 flex items-start justify-between gap-2">
+            <div className="absolute left-3 right-3 top-3 z-10 flex items-start justify-between gap-2">
               {/* Category badge */}
               <Badge
                 className={cn(
@@ -77,31 +77,32 @@ export const VendorCard = React.forwardRef<HTMLAnchorElement, VendorCardProps>(
                 </Badge>
               )}
             </div>
-          </div>
 
-          <CardContent className="absolute bottom-0 left-0 right-0 p-4">
-            <h3 className="font-display text-lg font-semibold text-primary-foreground">
-              {vendor.business_name}
-            </h3>
-            
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
-              {vendor.neighborhood && (
-                <p className="flex items-center gap-1 text-sm text-primary-foreground/80">
-                  <MapPin className="h-3 w-3" />
-                  {vendor.neighborhood}
-                </p>
-              )}
+            {/* Bottom content — inside the relative div so absolute anchors correctly */}
+            <CardContent className="absolute bottom-0 left-0 right-0 z-10 p-4">
+              <h3 className="font-display text-lg font-semibold text-primary-foreground">
+                {vendor.business_name}
+              </h3>
               
-              {hasRating && (
-                <StarRating
-                  rating={vendor.avg_rating ?? 0}
-                  reviewCount={vendor.review_count}
-                  size="sm"
-                  className="text-primary-foreground/90 [&_svg]:text-amber-400 [&_svg]:fill-amber-400 [&_.text-muted-foreground]:text-primary-foreground/70"
-                />
-              )}
-            </div>
-          </CardContent>
+              <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1">
+                {vendor.neighborhood && (
+                  <p className="flex items-center gap-1 text-sm text-primary-foreground/80">
+                    <MapPin className="h-3 w-3" />
+                    {vendor.neighborhood}
+                  </p>
+                )}
+                
+                {hasRating && (
+                  <StarRating
+                    rating={vendor.avg_rating ?? 0}
+                    reviewCount={vendor.review_count}
+                    size="sm"
+                    className="text-primary-foreground/90 [&_svg]:text-amber-400 [&_svg]:fill-amber-400 [&_.text-muted-foreground]:text-primary-foreground/70"
+                  />
+                )}
+              </div>
+            </CardContent>
+          </div>
         </Card>
       </Link>
     );
