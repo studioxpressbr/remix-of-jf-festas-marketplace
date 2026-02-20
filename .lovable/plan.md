@@ -1,47 +1,54 @@
 
-## Diagnóstico do Stripe e Plano de Ação
+## Ativar Stripe em Modo Producao (Live)
 
-**Custo estimado: 0 creditos** (nenhum arquivo de codigo precisa ser alterado)
+**Custo estimado: 1 credito** (atualizacao de Price IDs em `constants.ts` e na edge function `buy-lead-credit`)
 
 ---
 
-### O que foi testado
+### O que precisa ser feito
 
-1. Chamada direta para a edge function `create-checkout` — retornou HTTP 200 com URL de checkout valida do Stripe.
-2. Logs da edge function — confirmam que a funcao processou com sucesso a ultima chamada (07:55 de hoje), gerando a sessao `cs_test_a117fM...`.
-3. Chave e Price IDs — `STRIPE_SECRET_KEY` esta configurada; os IDs de preco em `constants.ts` batem com os enviados para o Stripe.
+Existem **3 lugares** onde os IDs do Stripe precisam ser atualizados para os equivalentes de producao (`live`):
 
-### Conclusao do diagnostico
-
-**O Stripe esta funcionando corretamente.** A integracao tecnica esta completa e operacional.
-
-O que pode estar parecendo "nao funcionar" e um comportamento esperado do ambiente de teste:
-
-| Situacao | Motivo |
+| Arquivo | O que atualizar |
 |---|---|
-| Cartao real recusado no checkout | A chave `sk_test_` so aceita cartoes de teste do Stripe |
-| Assinatura nao ativa apos pagamento | Pagamento de teste exige cartao de teste |
+| Segredo `STRIPE_SECRET_KEY` | Substituir `sk_test_...` por `sk_live_...` |
+| `src/lib/constants.ts` | 3 Price IDs e 3 Product IDs (MEI, Empresarial, Creditos) |
+| `supabase/functions/buy-lead-credit/index.ts` | `LEAD_CREDIT_PRICE_ID` hardcoded na linha 26 |
 
-### Cartoes de teste para validar o fluxo
+---
 
-Para testar o checkout do inicio ao fim, use estes dados no formulario do Stripe:
+### Passo 1 — Atualizar a chave secreta (voce faz isso)
 
-- **Numero do cartao:** `4242 4242 4242 4242`
-- **Validade:** qualquer data futura (ex: `12/34`)
-- **CVC:** qualquer 3 digitos (ex: `123`)
-- **CEP:** qualquer 5 digitos (ex: `12345`)
+No Lovable, acesse **Settings → Secrets** e atualize o valor de `STRIPE_SECRET_KEY` com sua chave `sk_live_...` obtida em [dashboard.stripe.com → Developers → API Keys](https://dashboard.stripe.com/apikeys) (certifique-se de desativar o "Test mode" la).
 
-### Para ir para producao (quando pronto)
+---
 
-Nenhuma mudanca de codigo e necessaria. So e preciso:
+### Passo 2 — Obter os Price IDs de producao (voce faz isso no Stripe)
 
-1. Obter a chave `sk_live_...` no painel do Stripe (em modo producao)
-2. Atualizar o segredo `STRIPE_SECRET_KEY` com a chave de producao
-3. Criar os produtos/precos no modo producao do Stripe e atualizar os Price IDs em `src/lib/constants.ts` e na edge function `buy-lead-credit`
-4. Publicar o projeto
+No painel do Stripe em modo **Live**, acesse **Products** e copie os IDs dos produtos e precos que correspondem a:
 
-### Detalhe tecnico adicional
+- **Plano MEI** (R$ 99/ano): `price_live_...` e `prod_live_...`
+- **Plano Empresarial** (R$ 499/ano): `price_live_...` e `prod_live_...`
+- **Creditos para Leads** (R$ 2/unidade): `price_live_...` e `prod_live_...`
 
-A edge function `verify-payment` nao mostra logs porque so e chamada na pagina `/pagamento-sucesso`, que so e acessada apos um pagamento real completado. Isso e normal e nao indica erro.
+Se os produtos ainda nao existem em modo Live, voce precisa cria-los no painel do Stripe antes de continuar.
 
-**Nenhuma alteracao de codigo ou banco de dados e necessaria para corrigir algo quebrado. O sistema esta funcional.**
+---
+
+### Passo 3 — Eu atualizo o codigo (1 credito)
+
+Com os IDs de producao em maos, eu atualizo:
+
+1. **`src/lib/constants.ts`** — os 6 IDs (3 price + 3 product) nos objetos `STRIPE_MEI_PLAN`, `STRIPE_EMPRESARIAL_PLAN` e `STRIPE_LEAD_CREDITS`
+2. **`supabase/functions/buy-lead-credit/index.ts`** — o `LEAD_CREDIT_PRICE_ID` na linha 26
+
+---
+
+### Como proceder
+
+1. Atualize o segredo `STRIPE_SECRET_KEY` com sua chave `sk_live_...`
+2. Me envie os Price IDs e Product IDs de producao do seu painel Stripe
+3. Eu atualizo o codigo e a edge function automaticamente
+4. Publique o projeto para que as alteracoes entrem em vigor no site jffestas.lovable.app
+
+> **Importante:** Apos a troca, qualquer pagamento processado sera real e cobrado no cartao do cliente. Confirme que os produtos e precos no Stripe Live estao corretos antes de publicar.
