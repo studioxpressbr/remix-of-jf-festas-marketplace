@@ -42,20 +42,20 @@ export const LEAD_PRICE = 2; // R$ 2/lead
 
 // Stripe Product & Price IDs
 export const STRIPE_MEI_PLAN = {
-  priceId: 'price_1StuHiRDc1lDOFiCCvZkwhg9',
-  productId: 'prod_TrdYUtmHlctYqF',
+  priceId: 'price_1SxmOcPBxEvxO8pMO8PsjxIx',
+  productId: 'prod_Tvdf6fDsioZobk',
   label: 'Plano MEI',
 };
 
 export const STRIPE_EMPRESARIAL_PLAN = {
-  priceId: 'price_1T1Dy9RDc1lDOFiCBOwBhCrW',
+  priceId: 'price_1T0O3kPBxEvxO8pMReV3b3Qd',
   productId: 'prod_TyKj9SRXANiUjY',
   label: 'Plano Empresarial',
 };
 
 export const STRIPE_LEAD_CREDITS = {
-  priceId: 'price_1StuLVRDc1lDOFiCfmHwuIrg',
-  productId: 'prod_Trdc7wGUjzkUS8',
+  priceId: 'price_1Sxlz6PBxEvxO8pMoRyfZUDw',
+  productId: 'prod_TvdFdNMLzuh61M',
 };
 
 // Vendor type labels
