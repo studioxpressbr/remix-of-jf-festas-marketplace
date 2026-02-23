@@ -32,12 +32,14 @@ import {
   Crown,
   Globe,
   Zap,
+  Phone,
 } from 'lucide-react';
 import logoJfFestas from '@/assets/logo-jffestas.webp';
 
 const STRIPE_MEI_LINK = 'https://buy.stripe.com/3cIaEZ6L0arK5OO66l8og00';
 const STRIPE_EMPRESARIAL_LINK = 'https://buy.stripe.com/9B63cx9Xc1Ve2CCamB8og01';
 
+const WHATSAPP_URL = 'https://wa.me/5521972093557?text=Ol%C3%A1%2C%20gostaria%20de%20agendar%20uma%20demonstra%C3%A7%C3%A3o%20da%20JF%20Festas';
 const INSTAGRAM_URL = 'https://www.instagram.com/festasemjf/';
 
 const stats = [
@@ -195,8 +197,8 @@ export function VendorLandingPage() {
                 className="text-lg px-8 py-6 border-2"
                 asChild
               >
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
-                  <Instagram className="mr-2 h-5 w-5" />
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  <Phone className="mr-2 h-5 w-5" />
                   Agende uma Demonstração
                 </a>
               </Button>
@@ -434,8 +436,8 @@ export function VendorLandingPage() {
                 className="text-lg px-8 py-6 border-2 border-white/30 bg-white/10 text-white hover:bg-white/20"
                 asChild
               >
-                <a href={INSTAGRAM_URL} target="_blank" rel="noopener noreferrer">
-                  <Instagram className="mr-2 h-5 w-5" />
+                <a href={WHATSAPP_URL} target="_blank" rel="noopener noreferrer">
+                  <Phone className="mr-2 h-5 w-5" />
                   Agende uma Demonstração
                 </a>
               </Button>
