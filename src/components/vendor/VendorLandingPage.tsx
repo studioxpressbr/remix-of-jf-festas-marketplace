@@ -102,20 +102,20 @@ const steps = [
 
 const testimonials = [
   {
-    name: 'Ana Paula S.',
-    role: 'Confeitaria Doce Encanto',
+    name: 'FunFesta',
+    role: 'Fornecedor cadastrado',
     comment: 'Em dois meses já recebi mais de 15 cotações. A plataforma me conectou com clientes que eu nunca alcançaria sozinha.',
     rating: 5,
   },
   {
-    name: 'Rafael M.',
-    role: 'RF Decorações',
+    name: 'Salgakits',
+    role: 'Fornecedor cadastrado',
     comment: 'O investimento se paga no primeiro evento fechado. Fácil de usar e o suporte é excelente.',
     rating: 5,
   },
   {
-    name: 'Camila T.',
-    role: 'Buffet Sabor da Festa',
+    name: 'Maria Festerê',
+    role: 'Fornecedor cadastrado',
     comment: 'Melhor decisão que tomei para o meu negócio. Os clientes chegam prontos para contratar.',
     rating: 5,
   },
