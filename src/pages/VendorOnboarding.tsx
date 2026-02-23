@@ -13,6 +13,7 @@ import { Label } from '@/components/ui/label';
 import { Checkbox } from '@/components/ui/checkbox';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { ImageUpload } from '@/components/vendor/ImageUpload';
+import { VendorLandingPage } from '@/components/vendor/VendorLandingPage';
 import { supabase } from '@/integrations/supabase/client';
 import { VENDOR_CATEGORIES } from '@/lib/constants';
 import { useToast } from '@/hooks/use-toast';
@@ -127,7 +128,7 @@ function OnboardingContent() {
     if (authLoading) return;
 
     if (!user) {
-      navigate('/', { state: { openAuth: true } });
+      // Non-logged users see the landing page (handled in render)
       return;
     }
 
@@ -243,6 +244,11 @@ function OnboardingContent() {
       setSubmitting(false);
     }
   };
+
+  // Show landing page for non-logged users
+  if (!user) {
+    return <VendorLandingPage />;
+  }
 
   if (authLoading || existingVendor === null) {
     return (
